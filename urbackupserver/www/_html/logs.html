@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+ 	<meta charset="utf-8">
+	<title>UrBackup</title>
+	<link rel="stylesheet" href="libs/bootstrap-3.3.5/css/bootstrap.min.css">
+	<link rel="stylesheet" href="libs/bootstrap-3.3.5/css/bootstrap-theme.min.css">
+
+	<style>
+		#log-table td{
+			height: 50px;
+		}
+
+		#log-table .filterRow {
+		 	background-color: #e7e7e7
+		 } 
+
+		 #log-table .filterRow input {
+		 	width: 100%;
+
+		 }
+
+		 #log-table .filterRow select{
+		 	width: 100%;
+		 }
+
+		#log-table .table-detail{
+			padding: 15px;
+			background-color: #e7e7e7;
+			box-shadow: inset 0 3px 9px rgba(0,0,0,.075);
+			background-image: linear-gradient(to bottom,#dbdbdb 0,#e2e2e2 100%);
+		    background-repeat: repeat-x;
+		    width: 100%;
+		}
+
+		#log-table .table-detail ul {
+			margin-top: 10px;
+			list-style-type: none;
+			padding-left: 0px;
+		}
+
+		#log-table .table-detail li label:first-child {
+			width: 60px;
+		}
+
+
+		#log-table .table-detail li label {
+			margin-right: 30px;
+		}
+
+
+
+	</style>
+</head>
+
+<body>
+	<nav class="navbar navbar-default navbar-static-top">
+		<div class="container">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="#">urbackup</a>
+			</div>
+			<div id="navbar" class="navbar-collapse collapse">
+				<ul class="nav navbar-nav">
+					<li><a href="status.html">Clients</a></li>
+					<li><a href="activities.html">Activity</a></li>
+					<li class="active"><a href="logs.html">Logs</a></li>
+					<li><a href="#contact">Statistics</a></li>
+					<li class="dropdown">
+						<a href="settings.html" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Settings<span class="caret"></span></a>
+						<ul class="dropdown-menu">
+							<li class="active"><a href="settings.html">Email</a></li>
+							<li><a href="#">Users</a></li>
+							<li><a href="#">Server</a></li>
+							<li><a href="#">File backup</a></li>
+							<li><a href="#">Permissions</a></li>
+							<li><a href="#">Client</a></li>
+							<li><a href="#">Archival</a></li>
+							<li><a href="#">Internet</a></li>
+							<li><a href="#">Advanced</a></li>
+					  	</ul>
+					</li>
+				</ul>
+				<ul class="nav navbar-nav navbar-right">
+					<li class="dropdown">
+					  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">English<span class="caret"></span></a>
+					  <ul class="dropdown-menu">
+					    <li><a href="#">Nederlands</a></li>
+						<li><a href="#">Deutsch</a></li>
+						<li><a href="#">Français</a></li>
+					  </ul>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</nav>
+
+	<div class="container" role="main">
+		<!--
+		<div class="alert alert-danger">
+			De directory waar UrBackup de back-ups in opslaat is niet toegankelijk. Verander de directory via 'Settings' of pas de rechten van de betreffende map aan.(err_folder_not_found)
+		</div>
+	-->
+		<h3 class="text-right">
+			<a href="#">Live log</a>
+		</h3>
+		<h1>Logs</h1>
+		<table id="log-table" class="table">
+			<thead>
+				<tr>
+					<th>Computer name</th>
+					<th>Action</th>
+					<th>Start time</th>
+					<th>&nbsp;</th>
+				</tr>
+				<tr class="filterRow">
+					<th><input type="text" class="form-control small"/></th>
+					<th>
+						<select class="form-control">
+							<option>Select</option>
+							<option>Incremental image backup</option>
+							<option>Full image backup</option>
+						</select>
+					</th>
+					<th>&nbsp;</th>
+					<th class="text-right">
+						<button class="btn btn-default">Filter</button>
+					</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>Chris pc</td>
+					<td>Incremental image backup</td>
+					<td>2015-10-19 20:23</td>
+					<td class="text-right">
+						<button class="btn btn-warning" type="button">
+						  Warnings <span class="badge">4</span>
+						</button>
+						<button class="btn btn-danger" type="button">
+						  Errors <span class="badge">2</span>
+						</button>
+					</td>
+				</tr>
+				<tr>
+					<td>Chris pc</td>
+					<td>Incremental image backup</td>
+					<td>2015-10-19 20:23</td>
+					<td class="text-right">
+						<button class="btn btn-warning" type="button">
+						  Warnings <span class="badge">1</span>
+						</button>
+						<button class="btn btn-danger" type="button">
+						  Errors <span class="badge">2</span>
+						</button>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="4" class="table-detail">
+						<strong>Log records</strong>
+						<ul>
+							<li>
+								<label><span class="label label-danger">Error</span></label>
+								<label>2015-10-07 12:05</label>
+								<label>Backup failed</label>
+							</li>
+							<li>
+								<label><span class="label label-danger">Error</span></label>
+								<label>2015-10-07 12:05</label>
+								<label>Failed to open MBR file</label>
+							</li>
+							<li>
+								<label><span class="label label-warning">Warning</span></label>
+								<label>2015-10-07 12:05</label>
+								<label>MBR file not present</label>
+							</li>
+						</ul>
+					</td>
+				</tr>
+				<tr>
+					<td>John pc</td>
+					<td>Incremental image backup</td>
+					<td>2015-10-19 20:23</td>
+					<td class="text-right">
+						<button class="btn btn-warning" type="button">
+						  Warnings <span class="badge">0</span>
+						</button>
+						<button class="btn btn-danger" type="button">
+						  Errors <span class="badge">2</span>
+						</button>
+					</td>
+				</tr>
+				<tr>
+					<td>John pc</td>
+					<td>Incremental image backup</td>
+					<td>2015-10-19 20:23</td>
+					<td class="text-right">
+						<button class="btn btn-warning" type="button">
+						  Warnings <span class="badge">0</span>
+						</button>
+						<button class="btn btn-danger" type="button">
+						  Errors <span class="badge">2</span>
+						</button>
+					</td>
+				</tr>
+			</tbody>
+		</table>	
+	</div>
+	<footer>
+		<script src="libs/jquery-2.1.4/js/jquery-2.1.4.min.js"></script>
+		<script src="libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+	</footer>
+</body>
+</html>
