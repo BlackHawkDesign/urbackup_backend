@@ -6,5 +6,23 @@ import {Component} from 'angular2/core';
 })
 
 export class ClientListComponent {  
-	clients = [{"Name":"Pc1"},{"Name":"PC2"}];
+	clients = [{"name":"Pc1"},{"name":"PC2"}];
+	
+	filter = {
+		name : "",
+		online : "",
+		status : ""
+	};
+	
+	executefilter(){
+		filteredClients = [];
+		
+		for (client in clients){
+			if(client.name.search(filter.name)){
+				filteredClients.push(client);
+			}
+		}
+		
+		clients = filteredClients;
+	}
 }

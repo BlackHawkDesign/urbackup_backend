@@ -20,8 +20,22 @@ System.register(['angular2/core'], function(exports_1, context_1) {
         execute: function() {
             ClientListComponent = (function () {
                 function ClientListComponent() {
-                    this.clients = [{ "Name": "Pc1" }, { "Name": "PC2" }];
+                    this.clients = [{ "name": "Pc1" }, { "name": "PC2" }];
+                    this.filter = {
+                        name: "",
+                        online: "",
+                        status: ""
+                    };
                 }
+                ClientListComponent.prototype.executefilter = function () {
+                    filteredClients = [];
+                    for (client in clients) {
+                        if (client.name.search(filter.name)) {
+                            filteredClients.push(client);
+                        }
+                    }
+                    clients = filteredClients;
+                };
                 ClientListComponent = __decorate([
                     core_1.Component({
                         selector: 'clientlist',
