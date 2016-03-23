@@ -1,4 +1,4 @@
-System.register(['angular2/core', './components/menu/menu'], function(exports_1, context_1) {
+System.register(['angular2/core'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -10,32 +10,28 @@ System.register(['angular2/core', './components/menu/menu'], function(exports_1,
     var __metadata = (this && this.__metadata) || function (k, v) {
         if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
     };
-    var core_1, menu_1;
-    var AppComponent;
+    var core_1;
+    var MenuComponent;
     return {
         setters:[
             function (core_1_1) {
                 core_1 = core_1_1;
-            },
-            function (menu_1_1) {
-                menu_1 = menu_1_1;
             }],
         execute: function() {
-            AppComponent = (function () {
-                function AppComponent() {
+            MenuComponent = (function () {
+                function MenuComponent() {
                 }
-                AppComponent = __decorate([
+                MenuComponent = __decorate([
                     core_1.Component({
-                        selector: 'urbackup-app',
-                        templateUrl: './app/app.html',
-                        directives: [menu_1.Menu]
+                        selector: 'menu',
+                        templateUrl: './app/components/menu/menu.html'
                     }), 
                     __metadata('design:paramtypes', [])
-                ], AppComponent);
-                return AppComponent;
+                ], MenuComponent);
+                return MenuComponent;
             }());
-            exports_1("AppComponent", AppComponent);
+            exports_1("MenuComponent", MenuComponent);
         }
     }
 });
-//# sourceMappingURL=app.component.js.map
+//# sourceMappingURL=menu.component.js.map

@@ -5,4 +5,4 @@ import {Component} from 'angular2/core';
 	templateUrl: './app/components/menu/menu.html'
 })
 
-export class Menu {  }
+export class MenuComponent {  }
