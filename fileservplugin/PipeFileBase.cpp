@@ -24,8 +24,8 @@
 #include "../Interface/ThreadPool.h"
 #include "../stringtools.h"
 
-const size_t buffer_size = 5*1024*1024;
-const _u32 buffer_keep_free = 1*1024*1024;
+const size_t buffer_size = 10*1024*1024;
+const _u32 buffer_keep_free = 5*1024*1024;
 
 
 PipeFileBase::PipeFileBase(const std::string& pCmd)
@@ -69,13 +69,15 @@ bool PipeFileBase::SeekInt(_i64 spos)
 			buffer_size - buf_w_reserved_pos>static_cast<size_t>(-1 * seeked_r_pos) &&
 			buf_circle)
 		{
-			buf_r_pos = buffer_size + seeked_r_pos;
+			buf_r_pos = static_cast<size_t>(buffer_size + seeked_r_pos);
 			assert(buf_r_pos <= buffer_size);
 			curr_pos = spos;
 			return true;
 		}
 		else
 		{
+			Server->Log("Seek failed. buf_r_pos <= buf_w_pos. buf_r_pos=" + convert(buf_r_pos) + " buf_w_pos=" + convert(buf_w_pos) +
+				" seeked_r_pos=" + convert(seeked_r_pos) + " seek_off=" + convert(seek_off) + " spos=" + convert(spos) + " curr_pos=" + convert(curr_pos), LL_DEBUG);
 			return false;
 		}
 	}
@@ -99,6 +101,8 @@ bool PipeFileBase::SeekInt(_i64 spos)
 		}
 		else
 		{
+			Server->Log("Seek failed. buf_r_pos > buf_w_pos. buf_r_pos=" + convert(buf_r_pos) + " buf_w_pos=" + convert(buf_w_pos) +
+				" seeked_r_pos=" + convert(seeked_r_pos) + " seek_off=" + convert(seek_off) + " spos=" + convert(spos) + " curr_pos=" + convert(curr_pos), LL_DEBUG);
 			return false;
 		}
 	}
@@ -316,6 +320,11 @@ bool PipeFileBase::fillBuffer()
 {
 	IScopedLock lock(buffer_mutex.get());
 
+	if (has_eof)
+	{
+		return false;
+	}
+
 	size_t bsize_free = 0;
 
 	if (buf_w_pos == buffer_size
@@ -503,6 +512,11 @@ std::string PipeFileBase::getStdErr()
 
 void PipeFileBase::waitForExit()
 {
+	{
+		IScopedLock lock(buffer_mutex.get());
+		has_eof = true;
+	}
+
 	std::vector<THREADPOOL_TICKET> tickets;
 	tickets.push_back(stdout_thread);
 	tickets.push_back(stderr_thread);

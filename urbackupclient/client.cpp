@@ -39,6 +39,7 @@
 #include <assert.h>
 #include "../urbackupcommon/chunk_hasher.h"
 #include "../urbackupcommon/TreeHash.h"
+#include "../fileservplugin/chunk_settings.h"
 
 //For truncating files
 #ifdef _WIN32
@@ -46,6 +47,7 @@
 #include <fcntl.h>
 #include <sys\stat.h>
 #include "win_disk_mon.h"
+#include "win_all_volumes.h"
 #else
 #include "../config.h"
 #ifdef HAVE_MNTENT_H
@@ -72,7 +74,7 @@ const char IndexThread::IndexThreadAction_GetLog=9;
 const char IndexThread::IndexThreadAction_PingShadowCopy=10;
 const char IndexThread::IndexThreadAction_AddWatchdir = 5;
 const char IndexThread::IndexThreadAction_RemoveWatchdir = 6;
-
+const char IndexThread::IndexThreadAction_UpdateCbt = 7;
 
 extern PLUGIN_ID filesrv_pluginid;
 
@@ -82,9 +84,8 @@ const unsigned short tcpport=35621;
 const unsigned short udpport=35622;
 const unsigned int shadowcopy_timeout=7*24*60*60*1000;
 const unsigned int shadowcopy_startnew_timeout=55*60*1000;
-const size_t max_modify_file_buffer_size=500*1024;
-const size_t max_add_file_buffer_size=500*1024;
-const int64 save_filehash_limit=20*4096;
+const size_t max_modify_file_buffer_size= 2 * 1024 * 1024;
+const size_t max_add_file_buffer_size=2*1024*1024;
 const int64 file_buffer_commit_interval=120*1000;
 
 
@@ -396,6 +397,8 @@ void IndexThread::operator()(void)
 	updateDirs();
 	register_token_callback();
 
+	updateCbt();
+
 	while(true)
 	{
 		std::string msg;
@@ -597,12 +600,34 @@ void IndexThread::operator()(void)
 				{
 					scd->ref->dontincrement=true;
 				}
-				if(start_shadowcopy(scd, NULL, image_backup==1?true:false, std::vector<SCRef*>(), image_backup==1?true:false))
+				bool onlyref = false;
+				if(start_shadowcopy(scd, &onlyref, image_backup==1?true:false, std::vector<SCRef*>(), image_backup==1?true:false))
 				{
-					contractor->Write("done-"+convert(scd->ref->save_id)+"-"+(scd->target));
+					if (scd->ref!=NULL
+						&& scd->ref->cbt
+						&& !onlyref)
+					{
+						scd->ref->cbt = finishCbt(scd->orig_target);
+					}
+
+					if (scd->ref != NULL
+						&& !scd->ref->cbt
+						&& !disableCbt(scd->orig_target) )
+					{
+						VSSLog("Error disabling change block tracking for " + scd->orig_target, LL_ERROR);
+						contractor->Write("failed");
+					}
+					else
+					{
+						contractor->Write("done-" + convert(scd->ref->save_id) + "-" + (scd->target));
+					}
 				}
 				else
 				{
+					if (!disableCbt(scd->orig_target))
+					{
+						VSSLog("Error disabling change block tracking for " + scd->orig_target+" (2)", LL_ERROR);
+					}
 					VSSLog("Getting shadowcopy of \""+scd->dir+"\" failed.", LL_ERROR);
 					contractor->Write("failed");
 				}
@@ -635,7 +660,8 @@ void IndexThread::operator()(void)
 				scd->orig_target=scd->target;
 
 				Server->Log("Creating shadowcopy of \""+scd->dir+"\"...", LL_DEBUG);
-				bool b=start_shadowcopy(scd, NULL, image_backup==1?true:false, std::vector<SCRef*>(), image_backup==0?false:true);
+				bool onlyref = false;
+				bool b= start_shadowcopy(scd, &onlyref, image_backup==1?true:false, std::vector<SCRef*>(), image_backup==0?false:true);
 				Server->Log("done.", LL_DEBUG);
 				if(!b || scd->ref==NULL)
 				{
@@ -644,13 +670,41 @@ void IndexThread::operator()(void)
 						shareDir(starttoken, scd->dir, scd->target);
 					}
 
+					if (!disableCbt(scd->orig_target))
+					{
+						VSSLog("Error disabling change block tracking for " + scd->orig_target + " (3)", LL_ERROR);
+					}
+
 					contractor->Write("failed");
 					Server->Log("Creating shadowcopy of \""+scd->dir+"\" failed.", LL_ERROR);
 				}
 				else
 				{
-					contractor->Write("done-"+convert(scd->ref->save_id)+"-"+(scd->target));
-					scd->running=true;
+					if (scd->ref != NULL
+						&& scd->ref->cbt
+						&& !onlyref)
+					{
+						scd->ref->cbt = finishCbt(scd->orig_target);
+					}
+
+					if (scd->ref != NULL
+						&& !scd->ref->cbt
+						&& !disableCbt(scd->orig_target))
+					{
+						VSSLog("Error disabling change block tracking for " + scd->orig_target, LL_ERROR);
+
+						if (scd->fileserv)
+						{
+							shareDir(starttoken, scd->dir, scd->target);
+						}
+
+						contractor->Write("failed");
+					}
+					else
+					{
+						contractor->Write("done-" + convert(scd->ref->save_id) + "-" + (scd->target));
+						scd->running = true;
+					}
 				}
 			}
 		}
@@ -669,7 +723,7 @@ void IndexThread::operator()(void)
 
 			int64 starttime = Server->getTimeMS();
 			while (filesrv != NULL
-				&& filesrv->hasActiveMetadataTransfers(scdir, starttoken)
+				&& filesrv->hasActiveTransfers(scdir, starttoken)
 				&& Server->getTimeMS() - starttime < 60 * 60 * 1000)
 			{
 				Server->wait(1000);
@@ -798,9 +852,38 @@ void IndexThread::operator()(void)
 				cd->updateShadowCopyStarttime(save_id);
 			}
 		}
+		else if (action == IndexThreadAction_UpdateCbt)
+		{
+			updateCbt();
+		}
 	}
 
 	delete this;
+}
+
+namespace
+{
+#ifdef _WIN32
+	std::string getVolPath(const std::string& bpath)
+	{
+		std::string prefixedbpath = os_file_prefix(bpath);
+		std::wstring tvolume;
+		tvolume.resize(prefixedbpath.size() + 100);
+		DWORD cchBufferLength = static_cast<DWORD>(tvolume.size());
+		BOOL b = GetVolumePathNameW(Server->ConvertToWchar(prefixedbpath).c_str(), &tvolume[0], cchBufferLength);
+		if (!b)
+		{
+			return std::string();
+		}
+
+		std::string volume =  Server->ConvertFromWchar(tvolume.c_str());
+
+		if (volume.find("\\\\?\\") == 0)
+			volume.erase(0, 4);
+
+		return volume;
+	}
+#endif
 }
 
 const char * filelist_fn="urbackup/data/filelist_new.ub";
@@ -1002,6 +1085,12 @@ void IndexThread::indexDirs(bool full_backup)
 				{
 					shareDir(starttoken, backup_dirs[i].tname, removeDirectorySeparatorAtEnd(backup_dirs[i].path));
 				}
+
+				if (!disableCbt(backup_dirs[i].path))
+				{
+					VSSLog("Error disabling change block tracking", LL_ERROR);
+					index_error = true;
+				}
 			}
 			else
 			{
@@ -1029,31 +1118,65 @@ void IndexThread::indexDirs(bool full_backup)
 					DirectoryWatcherThread::update_and_wait(open_files);
 					std::sort(open_files.begin(), open_files.end());
 					Server->wait(1000);
-					std::vector<std::string> acd = cd->getChangedDirs(strlower(backup_dirs[i].path), false);
-					for (size_t j = 0; j < acd.size(); ++j)
-					{
-						if (!std::binary_search(changed_dirs.begin(), changed_dirs.end(), acd[j]))
-						{
-							changed_dirs.push_back(acd[j]);
-						}
-					}
-					std::sort(changed_dirs.begin(), changed_dirs.end());
 
-#if !defined(VSS_XP) && !defined(VSS_S03)
-					VSSLog("Scanning for changed hard links on volume of \"" + backup_dirs[i].tname + "\"...", LL_INFO);
-					handleHardLinks(backup_dirs[i].path, mod_path);
-#endif
+					if (scd->ref!=NULL
+						&& scd->ref->cbt)
+					{
+						scd->ref->cbt = finishCbt(backup_dirs[i].path);
+					}
 
 					int db_tgroup = (backup_dirs[i].flags & EBackupDirFlag_ShareHashes) ? 0 : (backup_dirs[i].group + 1);
 					
-					VSSLog("Removing deleted directories from index for \"" + backup_dirs[i].tname + "\"...", LL_DEBUG);
-					std::vector<std::string> deldirs = cd->getDelDirs(strlower(backup_dirs[i].path), false);
-					DBScopedWriteTransaction write_transaction(db);
-					for (size_t j = 0; j < deldirs.size(); ++j)
+					if (!full_backup)
 					{
-						cd->removeDeletedDir(deldirs[j], db_tgroup);
+						std::string volpath = getVolPath(backup_dirs[i].path);
+
+						if (volpath.empty())
+						{
+							VSSLog("Error getting volume path for " + backup_dirs[i].path, LL_WARNING);
+						}
+
+						volpath = strlower(removeDirectorySeparatorAtEnd(volpath));
+
+
+						std::vector<std::string> acd = cd->getChangedDirs(volpath, false);
+						for (size_t j = 0; j < acd.size(); ++j)
+						{
+							if (!std::binary_search(changed_dirs.begin(), changed_dirs.end(), acd[j]))
+							{
+								changed_dirs.push_back(acd[j]);
+							}
+						}
+						std::sort(changed_dirs.begin(), changed_dirs.end());
+
+						VSSLog("Removing deleted directories from index for \"" + volpath + "\"...", LL_DEBUG);
+						std::vector<std::string> deldirs = cd->getDelDirs(volpath, false);
+						DBScopedWriteTransaction write_transaction(db);
+						for (size_t j = 0; j < deldirs.size(); ++j)
+						{
+							cd->removeDeletedDir(deldirs[j], db_tgroup);
+						}
+					}
+
+#if !defined(VSS_XP) && !defined(VSS_S03)
+					if (!full_backup)
+					{
+						VSSLog("Scanning for changed hard links on volume of \"" + backup_dirs[i].tname + "\"...", LL_INFO);
+						handleHardLinks(backup_dirs[i].path, mod_path);
+					}
+#endif
+				}
+
+				if (scd->ref != NULL
+					&& !scd->ref->cbt)
+				{
+					if (!disableCbt(backup_dirs[i].path))
+					{
+						VSSLog("Error disabling change block tracking of \"" + backup_dirs[i].path + "\"...", LL_ERROR);
+						index_error = true;
 					}
 				}
+
 #else
 				if (!onlyref)
 				{
@@ -1066,7 +1189,10 @@ void IndexThread::indexDirs(bool full_backup)
 					VSSLog("Changed dir: " + changed_dirs[k], LL_DEBUG);
 				}
 
-				VSSLog("Indexing \"" + backup_dirs[i].tname + "\"...", LL_DEBUG);
+				if (!index_error)
+				{
+					VSSLog("Indexing \"" + backup_dirs[i].tname + "\"...", LL_DEBUG);
+				}
 				index_c_db = 0;
 				index_c_fs = 0;
 				index_c_db_update = 0;
@@ -1082,8 +1208,11 @@ void IndexThread::indexDirs(bool full_backup)
 					index_root_path = os_file_sep();
 				}
 #endif
-				initialCheck(backup_dirs[i].path, mod_path, backup_dirs[i].tname, outfile, true,
-					backup_dirs[i].flags, true, backup_dirs[i].symlinked, 0);
+				if (!index_error)
+				{
+					initialCheck(backup_dirs[i].path, mod_path, backup_dirs[i].tname, outfile, true,
+						backup_dirs[i].flags, !full_backup, backup_dirs[i].symlinked, 0);
+				}
 
 				commitModifyFilesBuffer();
 				commitAddFilesBuffer();
@@ -1333,7 +1462,7 @@ bool IndexThread::initialCheck(std::string orig_dir, std::string dir, std::strin
 		}
 	}
 
-	std::vector<SFileAndHash> files=getFilesProxy(orig_dir, dir, named_path, !first && use_db, fn_filter);
+	std::vector<SFileAndHash> files=getFilesProxy(orig_dir, dir, named_path, !first && use_db, fn_filter, use_db);
 
 	if(index_error)
 	{
@@ -1664,8 +1793,8 @@ bool IndexThread::readBackupScripts()
 
 						if (j > 0)
 						{
-							filesrv->registerFnRedirect(first_script_path + os_file_sep() + new_script.scriptname,
-								curr_script_path + os_file_sep() + new_script.scriptname);
+							filesrv->registerFnRedirect(first_script_path + os_file_sep() + new_script.outputname,
+								curr_script_path + os_file_sep() + new_script.outputname);
 						}
 					}
 				}
@@ -1748,7 +1877,7 @@ bool IndexThread::addMissingHashes(std::vector<SFileAndHash>* dbfiles, std::vect
 	return calculated_hash;
 }
 
-std::vector<SFileAndHash> IndexThread::getFilesProxy(const std::string &orig_path, std::string path, const std::string& named_path, bool use_db, const std::string& fn_filter)
+std::vector<SFileAndHash> IndexThread::getFilesProxy(const std::string &orig_path, std::string path, const std::string& named_path, bool use_db, const std::string& fn_filter, bool use_db_hashes)
 {
 #ifndef _WIN32
 	if(path.empty())
@@ -1774,16 +1903,16 @@ std::vector<SFileAndHash> IndexThread::getFilesProxy(const std::string &orig_pat
 	bool dir_changed=true;
 #endif
 	std::vector<SFileAndHash> fs_files;
-	if(!use_db || dir_changed )
+	if (!use_db || dir_changed)
 	{
 		++index_c_fs;
 
-		std::string tpath=os_file_prefix(path);
+		std::string tpath = os_file_prefix(path);
 
 		bool has_error;
-		fs_files=convertToFileAndHash(orig_path, getFilesWin(tpath, &has_error, true, true, (index_flags & EBackupDirFlag_OneFilesystem)>0), fn_filter);
+		fs_files = convertToFileAndHash(orig_path, getFilesWin(tpath, &has_error, true, true, (index_flags & EBackupDirFlag_OneFilesystem) > 0), fn_filter);
 
-		if(has_error)
+		if (has_error)
 		{
 #ifdef _WIN32
 			int err = GetLastError();
@@ -1794,37 +1923,40 @@ std::vector<SFileAndHash> IndexThread::getFilesProxy(const std::string &orig_pat
 			bool root_exists = os_directory_exists(os_file_prefix(index_root_path)) ||
 				os_directory_exists(os_file_prefix(add_trailing_slash(index_root_path)));
 
-			if(root_exists)
+			if (root_exists)
 			{
 #ifdef _WIN32
-				VSSLog("Error while getting files in folder \""+path+"\". SYSTEM may not have permissions to access this folder. Windows errorcode: "+convert(err), LL_ERROR);
+				VSSLog("Error while getting files in folder \"" + path + "\". SYSTEM may not have permissions to access this folder. Windows errorcode: " + convert(err), LL_ERROR);
 #else
-                VSSLog("Error while getting files in folder \""+path+"\". User may not have permissions to access this folder. Errno is "+convert(err), LL_ERROR);
-                index_error=true;
+				VSSLog("Error while getting files in folder \"" + path + "\". User may not have permissions to access this folder. Errno is " + convert(err), LL_ERROR);
+				index_error = true;
 #endif
 			}
 			else
 			{
 #ifdef _WIN32
-				VSSLog("Error while getting files in folder \""+path+"\". Windows errorcode: "+convert(err)+". Access to root directory is gone too. Shadow copy was probably deleted while indexing.", LL_ERROR);
+				VSSLog("Error while getting files in folder \"" + path + "\". Windows errorcode: " + convert(err) + ". Access to root directory is gone too. Shadow copy was probably deleted while indexing.", LL_ERROR);
 #else
-				VSSLog("Error while getting files in folder \""+path+"\". Errorno is "+convert(err)+". Access to root directory is gone too. Snapshot was probably deleted while indexing.", LL_ERROR);
+				VSSLog("Error while getting files in folder \"" + path + "\". Errorno is " + convert(err) + ". Access to root directory is gone too. Snapshot was probably deleted while indexing.", LL_ERROR);
 #endif
-				index_error=true;
+				index_error = true;
 			}
 		}
 
 		std::vector<SFileAndHash> db_files;
-		bool has_files=false;
-		
-#ifndef _WIN32
-		if(calculate_filehashes_on_client)
+		bool has_files = false;
+
+		if (use_db_hashes)
 		{
-#endif
-			has_files = cd->getFiles(path_lower, get_db_tgroup(), db_files);
 #ifndef _WIN32
-		}
+			if (calculate_filehashes_on_client)
+			{
 #endif
+				has_files = cd->getFiles(path_lower, get_db_tgroup(), db_files);
+#ifndef _WIN32
+			}
+#endif
+		}
 
 #ifdef _WIN32
 		if(dir_changed)
@@ -3605,7 +3737,7 @@ void IndexThread::handleHardLinks(const std::string& bpath, const std::string& v
 			}
 
 			std::string fn=vsstpath+files[i].name;
-			HANDLE hFile = CreateFileW(Server->ConvertToWchar(os_file_prefix(fn)).c_str(), GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+			HANDLE hFile = CreateFileW(Server->ConvertToWchar(os_file_prefix(fn)).c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 
 			if(hFile==INVALID_HANDLE_VALUE)
 			{
@@ -3613,15 +3745,15 @@ void IndexThread::handleHardLinks(const std::string& bpath, const std::string& v
 			}
 			else
 			{
-				BY_HANDLE_FILE_INFORMATION fileInformation;
-				BOOL b=GetFileInformationByHandle(hFile, &fileInformation);
+				FILE_STANDARD_INFO fileInformation;
+				BOOL b= GetFileInformationByHandleEx(hFile, FileStandardInfo, &fileInformation, sizeof(fileInformation));
 
 				if(!b)
 				{
 					VSSLog("Error getting file information of "+fn, LL_INFO);
 					CloseHandle(hFile);
 				}
-				else if(fileInformation.nNumberOfLinks>1)
+				else if(fileInformation.NumberOfLinks>1)
 				{
 					CloseHandle(hFile);
 
@@ -4361,6 +4493,550 @@ bool IndexThread::handleLastFilelistDepth(SFile& data)
 	return true;
 }
 
+bool IndexThread::volIsEnabled(std::string settings_val, std::string volume)
+{
+	settings_val = strlower(trim(settings_val));
+
+	if (settings_val == "all")
+	{
+		return true;
+	}
+
+	if (volume.size() == 2 && volume[1] == ':')
+	{
+		volume.resize(1);
+	}
+
+	volume = strlower(volume);
+
+	std::vector<std::string> vols;
+	TokenizeMail(settings_val, vols, ",;");
+
+	for (size_t i = 0; i < vols.size(); ++i)
+	{
+		if (vols[i].size() == 2 && vols[i][1] == ':')
+		{
+			vols[i].resize(1);
+		}
+
+		if (vols[i] == volume)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool IndexThread::cbtIsEnabled(std::string clientsubname, std::string volume)
+{
+	std::string settings_fn = "urbackup/data/settings.cfg";
+
+	if (!clientsubname.empty())
+	{
+		settings_fn = "urbackup/data/settings_" + conv_filename(clientsubname) + ".cfg";
+	}
+
+	std::auto_ptr<ISettingsReader> curr_settings(Server->createFileSettingsReader(settings_fn));
+	if (curr_settings.get() != NULL)
+	{
+		std::string cbt_volumes;
+		if (curr_settings->getValue("cbt_volumes", &cbt_volumes)
+			|| curr_settings->getValue("cbt_volumes_def", &cbt_volumes))
+		{
+			return volIsEnabled(cbt_volumes, volume);
+		}
+	}
+	return true;
+}
+
+bool IndexThread::crashPersistentCbtIsEnabled(std::string clientsubname, std::string volume)
+{
+	std::string settings_fn = "urbackup/data/settings.cfg";
+
+	if (!clientsubname.empty())
+	{
+		settings_fn = "urbackup/data/settings_" + conv_filename(clientsubname) + ".cfg";
+	}
+
+	std::auto_ptr<ISettingsReader> curr_settings(Server->createFileSettingsReader(settings_fn));
+	if (curr_settings.get() != NULL)
+	{
+		std::string cbt_crash_persistent_volumes;
+		if (curr_settings->getValue("cbt_crash_persistent_volumes", &cbt_crash_persistent_volumes)
+			|| curr_settings->getValue("cbt_crash_persistent_volumes_def", &cbt_crash_persistent_volumes))
+		{
+			return volIsEnabled(cbt_crash_persistent_volumes, volume);
+		}
+	}
+	return false;
+}
+
+#ifdef _WIN32
+#define URBT_BLOCKSIZE (512 * 1024)
+#define URBT_MAGIC "~urbackupcbt!"
+#define URBT_MAGIC_SIZE 13
+
+typedef struct _URBCT_BITMAP_DATA
+{
+	DWORD BitmapSize;
+	ULONG SectorSize;
+	BYTE Bitmap[1];
+} URBCT_BITMAP_DATA, *PURBCT_BITMAP_DATA;
+
+#define IOCTL_URBCT_RESET_START CTL_CODE(FILE_DEVICE_DISK, 3240, METHOD_BUFFERED, FILE_READ_DATA)
+#define IOCTL_URBCT_RETRIEVE_BITMAP CTL_CODE(FILE_DEVICE_DISK, 3241, METHOD_BUFFERED, FILE_READ_DATA)
+#define IOCTL_URBCT_RESET_FINISH CTL_CODE(FILE_DEVICE_DISK, 3242, METHOD_BUFFERED, FILE_READ_DATA)
+
+namespace
+{
+	class ScopedCloseWindowsHandle
+	{
+	public:
+		ScopedCloseWindowsHandle(HANDLE h)
+			: h(h)
+		{}
+
+		~ScopedCloseWindowsHandle() {
+			CloseHandle(h);
+		}
+	private:
+		HANDLE h;
+	};
+}
+
+#endif
+
+bool IndexThread::prepareCbt(std::string volume)
+{
+#ifdef _WIN32
+	if (volume.empty())
+	{
+		return false;
+	}
+
+	if (volume[volume.size() - 1] == '\\')
+	{
+		volume = volume.substr(0, volume.size() - 1);
+	}
+
+	if (volume.size() > 2)
+	{
+		volume = getVolPath(volume);
+
+		if (volume.empty())
+		{
+			return false;
+		}
+	}
+	else if (volume.size() == 1)
+	{
+		volume += ":";
+	}
+
+	HANDLE hVolume = CreateFileA(("\\\\.\\" + volume).c_str(), GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+
+	if (hVolume == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
+
+	ScopedCloseWindowsHandle hclose(hVolume);
+
+	DWORD bytesReturned;
+	BOOL b = DeviceIoControl(hVolume, IOCTL_URBCT_RESET_START, NULL, 0, NULL, 0, &bytesReturned, NULL);
+
+	if (!b)
+	{
+		DWORD lasterr = GetLastError();
+
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Preparing change block tracking reset for volume " + volume + " failed: " + errmsg + " (code: " + convert(err) + ")", LL_DEBUG);
+
+		
+		if ( (lasterr == ERROR_INVALID_FUNCTION
+				&& FileExists("urbctctl.exe") )
+			|| lasterr !=ERROR_INVALID_FUNCTION )
+		{
+			if (cbtIsEnabled(std::string(), volume))
+			{
+				enableCbtVol(volume, true);
+			}
+		}
+	}
+
+	return b == TRUE;
+#else
+	return false;
+#endif
+}
+
+bool IndexThread::finishCbt(std::string volume)
+{
+#ifdef _WIN32
+	if (volume.empty())
+	{
+		return false;
+	}
+
+	if (volume[volume.size() - 1] == '\\')
+	{
+		volume = volume.substr(0, volume.size() - 1);
+	}
+
+	if (volume.size() > 2)
+	{
+		volume = getVolPath(volume);
+
+		if (volume.empty())
+		{
+			return false;
+		}
+	}
+	else if (volume.size() == 1)
+	{
+		volume += ":";
+	}
+
+	HANDLE hVolume = CreateFileA(("\\\\.\\" + volume).c_str(), GENERIC_READ|GENERIC_WRITE,
+		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+
+	if (hVolume == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
+
+	if (FlushFileBuffers(hVolume) == FALSE)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Flushing volume " + volume + " failed: " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+
+	ScopedCloseWindowsHandle hclose(hVolume);
+
+	GET_LENGTH_INFORMATION lengthInfo;
+	DWORD retBytes;
+	BOOL b = DeviceIoControl(hVolume, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, &lengthInfo, sizeof(lengthInfo),
+		&retBytes, NULL);
+
+	if (!b)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Getting length information for volume " + volume + " failed: " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+
+	DISK_GEOMETRY disk_geometry = {};
+	b = DeviceIoControl(hVolume, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, &disk_geometry, sizeof(disk_geometry),
+		&retBytes, NULL);
+
+	if (!b)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Getting disk geometry of volume " + volume + " failed: " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+	
+
+	ULONGLONG bitmapBlocks = lengthInfo.Length.QuadPart / URBT_BLOCKSIZE + (lengthInfo.Length.QuadPart%URBT_BLOCKSIZE == 0 ? 0 : 1);
+
+	size_t bitmapBytesWoMagic = bitmapBlocks / 8 + (bitmapBlocks % 8 == 0 ? 0 : 1);
+
+	DWORD bitmapSectorSize = disk_geometry.BytesPerSector - URBT_MAGIC_SIZE;
+
+	size_t bitmapBytes = (bitmapBytesWoMagic / bitmapSectorSize)*disk_geometry.BytesPerSector 
+		+ ((bitmapBytesWoMagic%bitmapSectorSize != 0) ? (URBT_MAGIC_SIZE + bitmapBytesWoMagic%bitmapSectorSize) : 0);
+
+	std::vector<char> buf;
+	buf.resize(2*sizeof(DWORD));
+
+	DWORD bytesReturned;
+	b = DeviceIoControl(hVolume, IOCTL_URBCT_RETRIEVE_BITMAP, NULL, 0, buf.data(), static_cast<DWORD>(buf.size()), &bytesReturned, NULL);
+
+	if (!b && GetLastError() != ERROR_MORE_DATA)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Getting changed block data from volume " + volume + " failed: " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+
+	PURBCT_BITMAP_DATA bitmap_data = reinterpret_cast<PURBCT_BITMAP_DATA>(buf.data());
+
+	if (bitmap_data->BitmapSize < bitmapBytes)
+	{
+		VSSLog("Did not track enough (volume resize?). Not using tracking data for backup. (tracked " + convert((int)bitmap_data->BitmapSize) + " should track " + convert(bitmapBytes) + ")", LL_WARNING);
+		return false;
+	}
+
+	buf.resize(2*sizeof(DWORD) + bitmap_data->BitmapSize);
+
+	b = DeviceIoControl(hVolume, IOCTL_URBCT_RETRIEVE_BITMAP, NULL, 0, buf.data(), static_cast<DWORD>(buf.size()), &bytesReturned, NULL);
+
+	if (!b)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Getting changed block data from volume " + volume + " failed (2): " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+
+	bitmap_data = reinterpret_cast<PURBCT_BITMAP_DATA>(buf.data());
+	char* urbackupcbt_magic = URBT_MAGIC;
+
+	for (DWORD i = 0; i < bitmap_data->BitmapSize; i+=bitmap_data->SectorSize)
+	{
+		if (memcmp(&bitmap_data->Bitmap[i], urbackupcbt_magic, URBT_MAGIC_SIZE) != 0)
+		{
+			VSSLog("UrBackup cbt magic wrong at pos "+convert((size_t)i), LL_ERROR);
+			return false;
+		}
+	}
+
+	std::auto_ptr<IFsFile> hdat_img(Server->openFile("urbackup\\hdat_img_" + conv_filename(volume) + ".dat", MODE_RW_CREATE));
+
+	if (hdat_img.get() == NULL)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Cannot open image hash data file for change block tracking. " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+
+	hdat_img->Resize(bitmap_data->BitmapSize * 8 * SHA256_DIGEST_SIZE);
+
+	char zero_sha[SHA256_DIGEST_SIZE] = {};
+
+	VSSLog("Zeroing image hash data of volume "+volume+"...", LL_DEBUG);
+
+	int64 changed_bytes = 0;
+
+	DWORD curr_bit = 0;
+	for (DWORD i = 0; i < bitmap_data->BitmapSize; i+=bitmap_data->SectorSize)
+	{
+		for (DWORD j = i + URBT_MAGIC_SIZE; j < i + bitmap_data->SectorSize; ++j)
+		{
+			BYTE ch = bitmap_data->Bitmap[j];
+
+			for (DWORD bit = 0; bit < 8; ++bit)
+			{
+				if ((ch & (1 << bit))>0)
+				{
+					if (hdat_img->Write((curr_bit * 8 + bit)*SHA256_DIGEST_SIZE, zero_sha, SHA256_DIGEST_SIZE) != SHA256_DIGEST_SIZE)
+					{
+						std::string errmsg;
+						int64 err = os_last_error(errmsg);
+						VSSLog("Errro zeroing image hash data. " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+						return false;
+					}
+
+					changed_bytes += URBT_BLOCKSIZE;
+				}
+			}
+
+			++curr_bit;
+		}
+	}
+
+	hdat_img->Sync();
+
+	VSSLog("Change block tracking reports " + PrettyPrintBytes(changed_bytes) + " have changed on volume", LL_INFO);
+
+	std::auto_ptr<IFsFile> hdat_file(Server->openFile("urbackup\\hdat_file_" + conv_filename(volume) + ".dat", MODE_RW_CREATE));
+
+	if (hdat_file.get() == NULL)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Cannot open file hash data file for change block tracking. " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+		return false;
+	}
+
+	hdat_file->Resize(bitmap_data->BitmapSize * 8 * chunkhash_single_size);
+
+	VSSLog("Zeroing file hash data of volume " + volume + "...", LL_DEBUG);
+
+	char zero_chunk[chunkhash_single_size] = {};
+
+	curr_bit = 0;
+	for (DWORD i = 0; i < bitmap_data->BitmapSize; i += bitmap_data->SectorSize)
+	{
+		for (DWORD j = i + URBT_MAGIC_SIZE; j < i + bitmap_data->SectorSize; ++j)
+		{
+			BYTE ch = bitmap_data->Bitmap[j];
+
+			for (DWORD bit = 0; bit < 8; ++bit)
+			{
+				if ((ch & (1 << bit))>0)
+				{
+					if (hdat_file->Write((i * 8 + bit)*chunkhash_single_size, zero_chunk, chunkhash_single_size) != chunkhash_single_size)
+					{
+						std::string errmsg;
+						int64 err = os_last_error(errmsg);
+						VSSLog("Errro zeroing file hash data. " + errmsg + " (code: " + convert(err) + ")", LL_ERROR);
+						return false;
+					}
+				}
+			}
+			++curr_bit;
+		}
+	}
+
+	hdat_file->Sync();
+
+	b = DeviceIoControl(hVolume, IOCTL_URBCT_RESET_FINISH, NULL, 0, NULL, 0, &bytesReturned, NULL);
+
+	if (!b)
+	{
+		std::string errmsg;
+		int64 err = os_last_error(errmsg);
+		VSSLog("Finishing change block tracking reset for volume " + volume + " failed: " + errmsg + " (code: " + convert(err) + ")", LL_DEBUG);
+		return false;
+	}
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool IndexThread::disableCbt(std::string volume)
+{
+#ifdef _WIN32
+	if (volume.empty())
+	{
+		return false;
+	}
+
+	if (volume[volume.size() - 1] == '\\')
+	{
+		volume = volume.substr(0, volume.size() - 1);
+	}
+
+	if (volume.size() > 2)
+	{
+		volume = getVolPath(volume);
+
+		if (volume.empty())
+		{
+			return false;
+		}
+	}
+	else if (volume.size() == 1)
+	{
+		volume += ":";
+	}
+
+	Server->deleteFile("urbackup\\hdat_file_" + conv_filename(volume) + ".dat");
+	Server->deleteFile("urbackup\\hdat_img_" + conv_filename(volume) + ".dat");
+
+	return !FileExists("urbackup\\hdat_file_" + conv_filename(volume) + ".dat")
+		&& !FileExists("urbackup\\hdat_img_" + conv_filename(volume) + ".dat");
+#else
+	return true;
+#endif
+}
+
+void IndexThread::enableCbtVol(std::string volume, bool install)
+{
+#ifdef _WIN32
+	std::string allowed_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz:";
+	
+	for (size_t i = 0; i < volume.size(); ++i)
+	{
+		if (allowed_chars.find(volume[i]) == std::string::npos)
+		{
+			return;
+		}
+	}
+
+	if (volume.size() == 1)
+	{
+		volume += ":";
+	}
+
+	if (install)
+	{
+		std::string crash_persistent = crashPersistentCbtIsEnabled(std::string(), volume) ? "crash-persistent" : "not-crash-persistent";
+
+		system(("urbctctl.exe install " + volume + " " + crash_persistent).c_str());
+	}
+	else
+	{
+		system(("urbctctl.exe uninstall " + volume).c_str());
+	}
+#endif
+}
+
+void IndexThread::updateCbt()
+{
+#ifdef _WIN32
+	if (!FileExists("urbctctl.exe"))
+	{
+		return;
+	}
+
+	std::set<std::string> vols;
+	static SVolumesCache* volumes_cache = NULL;
+
+	std::string settings_fn = "urbackup/data/settings.cfg";
+	std::auto_ptr<ISettingsReader> curr_settings(Server->createFileSettingsReader(settings_fn));
+	if (curr_settings.get() != NULL)
+	{
+		std::string volumes;
+
+		if (curr_settings->getValue("image_letters", &volumes)
+			|| curr_settings->getValue("image_letters_def", &volumes))
+		{
+			if (strlower(volumes) == "all")
+			{
+				volumes = get_all_volumes_list(false, volumes_cache);
+			}
+			else if (strlower(volumes) == "all_nonusb")
+			{
+				volumes = get_all_volumes_list(true, volumes_cache);
+			}
+			
+			std::vector<std::string> ret;
+			Tokenize(volumes, ret, ";,");
+			for (size_t i = 0; i<ret.size(); ++i)
+			{
+				std::string cvol = strlower(trim(ret[i]));
+
+				if (vols.find(cvol) == vols.end())
+				{
+					enableCbtVol(cvol, cbtIsEnabled(std::string(), cvol));
+					vols.insert(cvol);
+				}
+			}
+		}
+	}
+
+	readBackupDirs();
+
+	for (size_t i = 0; i < backup_dirs.size(); ++i)
+	{
+		std::string cvol = strlower(trim(getVolPath(backup_dirs[i].path)));
+
+		if (!cvol.empty()
+			&& vols.find(cvol) == vols.end() )
+		{
+			enableCbtVol(cvol, cbtIsEnabled(std::string(), cvol));
+			vols.insert(cvol);
+		}
+	}
+#endif
+}
+
 void IndexThread::setFlags( unsigned int flags )
 {
 	calculate_filehashes_on_client = (flags & flag_calc_checksums)>0;
@@ -4645,6 +5321,8 @@ bool IndexThread::start_shadowcopy_win( SCDirs * dir, std::string &wpath, bool f
 {
 	const char* crash_consistent_explanation = "This means the files open by this application (e.g. databases) will be backed up in a crash consistent "
 		"state instead of a properly shutdown state. Properly written applications can recover from system crashes or power failures.";
+
+	dir->ref->cbt = prepareCbt(wpath);
 
 	int tries=3;
 	bool retryable_error=true;

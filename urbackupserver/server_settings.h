@@ -112,6 +112,8 @@ struct SSettings
 	std::string internet_full_image_style;
 	float backup_ok_mod_file;
 	float backup_ok_mod_image;
+	std::string cbt_volumes;
+	std::string cbt_crash_persistent_volumes;
 };
 
 struct SLDAPSettings
@@ -136,11 +138,12 @@ struct SLDAPSettings
 
 struct STimeSpan
 {
-	STimeSpan(void): dayofweek(-1) {}
-	STimeSpan(int dayofweek, float start_hour, float stop_hour):dayofweek(dayofweek), start_hour(start_hour), stop_hour(stop_hour) {}
-	STimeSpan(float start_hour, float stop_hour):dayofweek(0), start_hour(start_hour), stop_hour(stop_hour) {}
+	STimeSpan(void): dayofweek(-1), numdays(7) {}
+	STimeSpan(int dayofweek, float start_hour, float stop_hour):dayofweek(dayofweek), start_hour(start_hour), stop_hour(stop_hour), numdays(1) {}
+	STimeSpan(float start_hour, float stop_hour):dayofweek(0), start_hour(start_hour), stop_hour(stop_hour), numdays(1) {}
 
 	int dayofweek;
+	int numdays;
 	float start_hour;
 	float stop_hour;
 
@@ -148,11 +151,18 @@ struct STimeSpan
 	{
 		if(dayofweek==-1)
 		{
-			return 24.f;
+			return 24.f*numdays;
 		}
 		else
 		{
-			return stop_hour-start_hour;
+			if (stop_hour < start_hour)
+			{
+				return (stop_hour + 24 - start_hour)*numdays;
+			}
+			else
+			{
+				return (stop_hour - start_hour)*numdays;
+			}
 		}
 	}
 };

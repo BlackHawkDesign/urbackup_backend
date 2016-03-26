@@ -66,8 +66,13 @@ PipeFile::PipeFile(const std::string& pCmd)
 		close(stderr_pipe[0]);
 		close(stderr_pipe[1]);
 
-		int rc = system((pCmd).c_str());
-
+		int rc = system(pCmd.c_str());
+		
+		if(rc>127)
+		{
+			rc = 127;
+		}
+		
 		_exit(rc);
 	}
 	else
@@ -134,15 +139,22 @@ bool PipeFile::readStderrIntoBuffer(char* buf, size_t buf_avail, size_t& read_by
 bool PipeFile::getExitCode(int& exit_code)
 {
 	int status;
-	int rc = waitpid(child_pid, &status, 0);
+	int rc = waitpid(child_pid, &status, WNOHANG);
 
 	if(rc==-1)
 	{
 		Server->Log("Error while waiting for exit code: " + convert(errno), LL_ERROR);
 		return false;
 	}
+	else if(rc==0)
+	{
+		Server->Log("Process is still active", LL_ERROR);
+		return false;
+	}
 	else
 	{
+		child_pid=-1;
+		
 		if(WIFEXITED(status))
 		{
 			exit_code = WEXITSTATUS(status);

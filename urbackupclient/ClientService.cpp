@@ -52,8 +52,11 @@
 
 #ifdef _WIN32
 #define UPDATE_FILE_PREFIX ""
+#define UPDATE_SIGNATURE_PREFIX ""
 #else
 #define UPDATE_FILE_PREFIX "urbackup/"
+#include "../config.h"
+#define UPDATE_SIGNATURE_PREFIX DATADIR "/urbackup/"
 #endif
 
 extern ICryptoFactory *crypto_fak;
@@ -502,7 +505,7 @@ bool ClientConnector::Run(IRunOtherCallback* p_run_other)
 							if(checkHash(getSha512Hash(updatefile)))
 							{
 								Server->destroy(updatefile);
-								if(crypto_fak->verifyFile(UPDATE_FILE_PREFIX "urbackup_ecdsa409k1.pub",
+								if(crypto_fak->verifyFile(UPDATE_SIGNATURE_PREFIX "urbackup_ecdsa409k1.pub",
 									UPDATE_FILE_PREFIX "UrBackupUpdate_untested.dat", UPDATE_FILE_PREFIX "UrBackupUpdate.sig2"))
 								{
 #ifdef _WIN32
@@ -1287,6 +1290,13 @@ bool ClientConnector::saveBackupDirs(str_map &args, bool server_default, int gro
 		}
 	}
 
+	if (!new_watchdirs.empty())
+	{
+		CWData data;
+		data.addChar(IndexThread::IndexThreadAction_UpdateCbt);
+		IndexThread::getMsgPipe()->Write(data.getDataPtr(), data.getDataSize());
+	}
+
 	if(Server->fileExists(Server->getServerWorkingDir()+"\\UrBackupClient.exe"))
 	{
 		{
@@ -1586,6 +1596,10 @@ void ClientConnector::updateSettings(const std::string &pData)
 		writestring((new_settings_str), settings_fn);
 
 		InternetClient::updateSettings();
+
+		CWData data;
+		data.addChar(IndexThread::IndexThreadAction_UpdateCbt);
+		IndexThread::getMsgPipe()->Write(data.getDataPtr(), data.getDataSize());
 	}
 
 	std::auto_ptr<ISettingsReader> curr_server_settings(Server->createFileSettingsReader(settings_server_fn));
@@ -1731,6 +1745,10 @@ void ClientConnector::replaceSettings(const std::string &pData)
 		new_data+="client_set_settings_time="+convert(Server->getTimeSeconds())+"\n";
 
 		writestring(new_data, settings_fn);
+
+		CWData data;
+		data.addChar(IndexThread::IndexThreadAction_UpdateCbt);
+		IndexThread::getMsgPipe()->Write(data.getDataPtr(), data.getDataSize());
 	}
 }
 

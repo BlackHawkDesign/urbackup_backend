@@ -255,27 +255,18 @@ std::vector<SFile> getFilesWin(const std::string &path, bool *has_error,
 		{
 			if(with_usn)
 			{
-				HANDLE hFile = CreateFileW(os_file_prefix(tpath+L"\\"+ConvertToWchar(f.name)).c_str(), GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, NULL,
+				HANDLE hFile = CreateFileW(os_file_prefix(tpath+L"\\"+ConvertToWchar(f.name)).c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_WRITE|FILE_SHARE_READ, NULL,
 					OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 
 				if(hFile!=INVALID_HANDLE_VALUE)
 				{
-					BY_HANDLE_FILE_INFORMATION file_info;
-					if(GetFileInformationByHandle(hFile, &file_info))
+					if (exact_filesize)
 					{
-						size.HighPart = file_info.nFileSizeHigh;
-						size.LowPart = file_info.nFileSizeLow;
-						f.size = size.QuadPart;
-
-						lwt.HighPart = file_info.ftLastWriteTime.dwHighDateTime;
-						lwt.LowPart = file_info.ftLastWriteTime.dwLowDateTime;
-
-						f.last_modified = os_windows_to_unix_time(lwt.QuadPart);
-
-						lwt.HighPart=file_info.ftCreationTime.dwHighDateTime;
-						lwt.LowPart=file_info.ftCreationTime.dwLowDateTime;
-
-						f.created=os_windows_to_unix_time(lwt.QuadPart);
+						LARGE_INTEGER fsize;
+						if (GetFileSizeEx(hFile, &fsize)!=0)
+						{
+							f.size = fsize.QuadPart;
+						}
 					}
 
 					

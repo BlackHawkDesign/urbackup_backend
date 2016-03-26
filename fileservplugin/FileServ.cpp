@@ -31,6 +31,8 @@ std::vector<std::string> FileServ::identities;
 bool FileServ::pause=false;
 std::map<std::string, FileServ::SScriptMapping> FileServ::script_mappings;
 IFileServ::ITokenCallbackFactory* FileServ::token_callback_factory = NULL;
+std::map<std::string, std::string> FileServ::fn_redirects;
+std::map<std::string, size_t> FileServ::active_shares;
 
 
 FileServ::FileServ(bool *pDostop, const std::string &pServername, THREADPOOL_TICKET serverticket, bool use_fqdn)
@@ -237,12 +239,73 @@ IFileServ::ITokenCallback* FileServ::newTokenCallback()
 	return token_callback_factory->getTokenCallback();
 }
 
-bool FileServ::hasActiveMetadataTransfers(const std::string& sharename, const std::string& server_token)
+void FileServ::incrShareActive(std::string sharename)
 {
-	return PipeSessions::isShareActive(sharename, server_token);
+	if (sharename.find("/") != std::string::npos)
+	{
+		sharename = getuntil("/", sharename);
+	}
+
+	IScopedLock lock(mutex);
+	++active_shares[sharename];
+}
+
+void FileServ::decrShareActive(std::string sharename)
+{
+	if (sharename.find("/") != std::string::npos)
+	{
+		sharename = getuntil("/", sharename);
+	}
+
+	IScopedLock lock(mutex);
+
+	std::map<std::string, size_t>::iterator it = active_shares.find(sharename);
+
+	if (it != active_shares.end())
+	{
+		--it->second;
+		if (it->second == 0)
+		{
+			active_shares.erase(it);
+		}
+	}
+}
+
+bool FileServ::hasActiveTransfers(const std::string& sharename, const std::string& server_token)
+{
+	if (PipeSessions::isShareActive(sharename, server_token))
+	{
+		return true;
+	}
+
+	IScopedLock lock(mutex);
+
+	std::map<std::string, size_t>::iterator it = active_shares.find(server_token + "|" + sharename);
+
+	return it != active_shares.end();
 }
 
 bool FileServ::registerFnRedirect(const std::string & source_fn, const std::string & target_fn)
 {
+	IScopedLock lock(mutex);
+
+	fn_redirects[source_fn] = target_fn;
+
 	return false;
+}
+
+std::string FileServ::getRedirectedFn(const std::string & source_fn)
+{
+	IScopedLock lock(mutex);
+
+	str_map::iterator it = fn_redirects.find(source_fn);
+
+	if (it != fn_redirects.end())
+	{
+		return it->second;
+	}
+	else
+	{
+		return source_fn;
+	}
 }

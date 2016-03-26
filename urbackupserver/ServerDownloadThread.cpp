@@ -582,7 +582,7 @@ bool ServerDownloadThread::load_file(SQueueItem todl)
 		}
 
 		hashFile(dstpath, hashpath, fd, NULL, filepath_old, fd->Size(), todl.metadata, todl.is_script, todl.sha_dig, fc.releaseSparseExtendsFile(),
-			default_hashing_method, fileHasSnapshot(todl));
+			todl.is_script ? HASH_FUNC_SHA512 : default_hashing_method, fileHasSnapshot(todl));
 	}
 	else
 	{
@@ -645,7 +645,7 @@ bool ServerDownloadThread::link_or_copy_file(SQueueItem todl)
 			pfd_destroy.release();
 			hashFile(dstpath, dlfiles.hashpath, dlfiles.patchfile, dlfiles.hashoutput,
 			    (dlfiles.filepath_old), orig_filesize, todl.metadata, todl.is_script, todl.sha_dig, NULL,
-				default_hashing_method, fileHasSnapshot(todl));
+				todl.is_script ? HASH_FUNC_SHA512 : default_hashing_method, fileHasSnapshot(todl));
 			return true;
 		}
 		else
@@ -846,7 +846,7 @@ bool ServerDownloadThread::load_file_patch(SQueueItem todl)
 		sparse_extents_f_delete.release();
 		hashFile(dstpath, dlfiles.hashpath, dlfiles.patchfile, dlfiles.hashoutput,
 			dlfiles.filepath_old, download_filesize, todl.metadata, todl.is_script, todl.sha_dig, sparse_extents_f,
-			default_hashing_method, fileHasSnapshot(todl));
+			todl.is_script ? HASH_FUNC_SHA512 : default_hashing_method, fileHasSnapshot(todl));
 	}
 
 	if(todl.is_script && (rc!=ERR_SUCCESS || !script_ok) )
@@ -1210,7 +1210,7 @@ SPatchDownloadFiles ServerDownloadThread::preparePatchDownloadFiles( SQueueItem 
 		}
 		dlfiles.delete_chunkhashes=true;
 		FsExtentIterator extent_iterator(file_old.get());
-		build_chunk_hashs(file_old.get(), hashfile_old.get(), NULL, false, NULL, false, NULL, NULL, false, &extent_iterator);
+		build_chunk_hashs(file_old.get(), hashfile_old.get(), NULL, NULL, false, NULL, NULL, false, NULL, &extent_iterator);
 		hashfile_old->Seek(0);
 	}
 
@@ -1422,6 +1422,26 @@ bool ServerDownloadThread::logScriptOutput(std::string cfn, const SQueueItem &to
 						{
 							if (!next(cfn, 0, "SCRIPT|urbackup/TAR"))
 							{
+								std::string tardirfn = ExtractFileName(getbetween("SCRIPT|", "|", cfn), "/");
+
+								if (tardirfn != ".." && tardirfn != ".")
+								{
+									std::string tardirpath = backuppath + os_file_sep() + "urbackup_backup_scripts" + os_file_sep() + tardirfn;
+									if (!os_create_dir(os_file_prefix(tardirpath)))
+									{
+										ServerLogger::Log(logid, "Error creating TAR dir at \"" + tardirpath + "\"", LL_ERROR);
+										break;
+									}
+
+									tardirpath = backuppath_hashes + os_file_sep() + "urbackup_backup_scripts" + os_file_sep() + tardirfn;
+
+									if (!os_create_dir(os_file_prefix(tardirpath)))
+									{
+										ServerLogger::Log(logid, "Error creating TAR dir at \"" + tardirpath + "\"", LL_ERROR);
+										break;
+									}
+								}
+
 								hash_file = false;
 							}
 

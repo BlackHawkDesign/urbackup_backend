@@ -421,6 +421,11 @@ bool CClientThread::ProcessPacket(CRData *data)
 				bool allow_exec;
 				std::string filename=map_file(o_filename, ident, allow_exec);
 
+				if (is_script)
+				{
+					filename = FileServ::getRedirectedFn(filename);
+				}
+
 				Log("Mapped name: "+filename, LL_DEBUG);
 
 				if(filename.empty())
@@ -542,6 +547,8 @@ bool CClientThread::ProcessPacket(CRData *data)
 					PipeSessions::transmitFileMetadata(filename,
 						getafter("|",s_filename), getuntil("|", s_filename), ident, folder_items, metadata_id);
 				}
+
+				ScopedShareActive scoped_share_active(o_filename);
 
 #ifndef LINUX
 				DWORD extra_flags = 0;
@@ -1571,6 +1578,11 @@ bool CClientThread::GetFileBlockdiff(CRData *data, bool with_metadata)
 	bool allow_exec;
 	std::string filename=map_file(o_filename, ident, allow_exec);
 
+	if (is_script)
+	{
+		filename = FileServ::getRedirectedFn(filename);
+	}
+
 	Log("Mapped name: "+filename, LL_DEBUG);
 
 	state=CS_BLOCKHASH;
@@ -1600,6 +1612,8 @@ bool CClientThread::GetFileBlockdiff(CRData *data, bool with_metadata)
 		}
 	}
 #endif
+
+	ScopedShareActive scoped_share_active;
 
 	std::auto_ptr<ScopedPipeFileUser> pipe_file_user;
 	IFile* srv_file = NULL;
@@ -1641,6 +1655,8 @@ bool CClientThread::GetFileBlockdiff(CRData *data, bool with_metadata)
 			PipeSessions::transmitFileMetadata(filename,
 				getafter("|",s_filename), getuntil("|", s_filename), ident, 0, metadata_id);
 		}
+
+		scoped_share_active.reset(s_filename);
 
 #ifdef _WIN32
 #ifndef BACKUP_SEM
@@ -1726,9 +1742,12 @@ bool CClientThread::GetFileBlockdiff(CRData *data, bool with_metadata)
 	chunk.requested_filesize = requested_filesize;
 	chunk.pipe_file_user = pipe_file_user.get();
 	chunk.with_sparse = is_script ? false : with_sparse;
+	chunk.s_filename = s_filename;
 	pipe_file_user.release();
 
 	hFile=INVALID_HANDLE_VALUE;
+
+	scoped_share_active.release();
 
 	queueChunk(chunk);
 
@@ -2162,6 +2181,7 @@ bool CClientThread::FinishScript( CRData * data )
 
 	bool allow_exec;
 	std::string filename=map_file(s_filename, ident, allow_exec);
+	filename = FileServ::getRedirectedFn(filename);
 
 	Log("Mapped name: "+filename, LL_DEBUG);
 
