@@ -20,21 +20,22 @@ System.register(['angular2/core'], function(exports_1, context_1) {
         execute: function() {
             ClientListComponent = (function () {
                 function ClientListComponent() {
-                    this.clients = [{ "name": "Pc1" }, { "name": "PC2" }];
-                    this.filter = {
-                        name: "",
-                        online: "",
-                        status: ""
-                    };
+                    this._clients = [{ "name": "Pc1" }, { "name": "PC2" }];
+                    this.clients = this._clients;
+                    this.filter = { name: "", online: "", status: "" };
                 }
-                ClientListComponent.prototype.executefilter = function () {
-                    filteredClients = [];
-                    for (client in clients) {
-                        if (client.name.search(filter.name)) {
-                            filteredClients.push(client);
+                ClientListComponent.prototype.executeFilter = function () {
+                    this.clients = [];
+                    for (var i in this._clients) {
+                        if (this._clients[i].name.toUpperCase().search(this.filter.name.toUpperCase()) != -1) {
+                            this.clients.push(this._clients[i]);
                         }
                     }
-                    clients = filteredClients;
+                };
+                ClientListComponent.prototype.displayDetail = function (clientNameCell) {
+                    var row = $(clientNameCell).parent();
+                    var detailRow = row.next();
+                    detailRow.show();
                 };
                 ClientListComponent = __decorate([
                     core_1.Component({

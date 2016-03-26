@@ -6,23 +6,24 @@ import {Component} from 'angular2/core';
 })
 
 export class ClientListComponent {  
-	clients = [{"name":"Pc1"},{"name":"PC2"}];
+	_clients = [{"name":"Pc1"},{"name":"PC2"}];
 	
-	filter = {
-		name : "",
-		online : "",
-		status : ""
-	};
+	clients = this._clients; 
+	filter = {name : "",online : "",status : ""};
 	
-	executefilter(){
-		filteredClients = [];
+	executeFilter(){
+		this.clients = [];
 		
-		for (client in clients){
-			if(client.name.search(filter.name)){
-				filteredClients.push(client);
+		for (var i in this._clients){
+			if(this._clients[i].name.toUpperCase().search(this.filter.name.toUpperCase()) != -1){
+				this.clients.push(this._clients[i]);
 			}
 		}
-		
-		clients = filteredClients;
+	}
+	
+	displayDetail(clientNameCell){
+		var row = $(clientNameCell).parent();
+		var detailRow = row.next();
+		detailRow.show();
 	}
 }
