@@ -1,6 +1,7 @@
 <html>
   <head>
-    <title>URBackup</title>
+    <base href="/">
+	<title>URBackup</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">        
 	<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
 	<link rel="stylesheet" href="node_modules/bootstrap-flat/css/bootstrap-flat.min.css">
@@ -15,6 +16,7 @@
     <script src="node_modules/angular2/bundles/angular2.dev.js"></script>
 	<script src="node_modules/jquery/dist/jquery.min.js"></script>
 	<script src="node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+	<script src="node_modules/angular2/bundles/router.dev.js"></script>
     <script>
       System.config({
         packages: {        
@@ -23,6 +25,7 @@
       });
       System.import('app/main').then(null, console.error.bind(console));
     </script>
+	
   </head>
 
   <body>

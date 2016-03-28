@@ -1,8 +1,10 @@
 import {Component} from 'angular2/core';
+import {ROUTER_DIRECTIVES,ROUTER_PROVIDERS} from 'angular2/router';
 
 @Component({
     selector: 'menu',
-	templateUrl: './app/components/menu/menu.html'
+	templateUrl: './app/components/menu/menu.html',
+	directives: [ROUTER_DIRECTIVES]
 })
 
 export class MenuComponent {  }
