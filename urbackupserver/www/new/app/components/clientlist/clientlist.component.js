@@ -1,4 +1,4 @@
-System.register(['angular2/core'], function(exports_1, context_1) {
+System.register(['angular2/core', './../../models/clientFilterRequest', './../../services/client.service'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -10,27 +10,28 @@ System.register(['angular2/core'], function(exports_1, context_1) {
     var __metadata = (this && this.__metadata) || function (k, v) {
         if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
     };
-    var core_1;
+    var core_1, clientFilterRequest_1, client_service_1;
     var ClientListComponent;
     return {
         setters:[
             function (core_1_1) {
                 core_1 = core_1_1;
+            },
+            function (clientFilterRequest_1_1) {
+                clientFilterRequest_1 = clientFilterRequest_1_1;
+            },
+            function (client_service_1_1) {
+                client_service_1 = client_service_1_1;
             }],
         execute: function() {
             ClientListComponent = (function () {
-                function ClientListComponent() {
-                    this._clients = [{ "name": "Pc1" }, { "name": "PC2" }];
-                    this.clients = this._clients;
-                    this.filter = { name: "", online: "", status: "" };
+                function ClientListComponent(clientService) {
+                    this.clientService = clientService;
+                    this.filter = new clientFilterRequest_1.ClientFilterRequest();
+                    this.executeFilter();
                 }
                 ClientListComponent.prototype.executeFilter = function () {
-                    this.clients = [];
-                    for (var i in this._clients) {
-                        if (this._clients[i].name.toUpperCase().search(this.filter.name.toUpperCase()) != -1) {
-                            this.clients.push(this._clients[i]);
-                        }
-                    }
+                    this.clients = this.clientService.getClients(this.filter);
                 };
                 ClientListComponent.prototype.displayDetail = function (clientNameCell) {
                     var row = $(clientNameCell).parent();
@@ -40,9 +41,10 @@ System.register(['angular2/core'], function(exports_1, context_1) {
                 ClientListComponent = __decorate([
                     core_1.Component({
                         selector: 'clientlist',
-                        templateUrl: './app/components/clientlist/clientlist.html'
+                        templateUrl: './app/components/clientlist/clientlist.html',
+                        providers: [client_service_1.ClientService]
                     }), 
-                    __metadata('design:paramtypes', [])
+                    __metadata('design:paramtypes', [client_service_1.ClientService])
                 ], ClientListComponent);
                 return ClientListComponent;
             }());

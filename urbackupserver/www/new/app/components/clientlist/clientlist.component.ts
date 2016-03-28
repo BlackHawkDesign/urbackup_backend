@@ -1,24 +1,27 @@
 import {Component} from 'angular2/core';
+import {Client} from './../../models/client';
+import {ClientFilterRequest} from './../../models/clientFilterRequest';
+import {ClientService} from './../../services/client.service';
 
 @Component({
     selector: 'clientlist',
-	templateUrl: './app/components/clientlist/clientlist.html'
+	templateUrl: './app/components/clientlist/clientlist.html',
+	providers:[ClientService]
 })
 
 export class ClientListComponent {  
-	_clients = [{"name":"Pc1"},{"name":"PC2"}];
+	clientService : ClientService;
+	clients : Client[];
+	filter : ClientFilterRequest;
 	
-	clients = this._clients; 
-	filter = {name : "",online : "",status : ""};
+	constructor(clientService: ClientService) {
+		this.clientService = clientService;
+		this.filter = new ClientFilterRequest();
+		this.executeFilter();
+	}
 	
 	executeFilter(){
-		this.clients = [];
-		
-		for (var i in this._clients){
-			if(this._clients[i].name.toUpperCase().search(this.filter.name.toUpperCase()) != -1){
-				this.clients.push(this._clients[i]);
-			}
-		}
+		this.clients = this.clientService.getClients(this.filter);
 	}
 	
 	displayDetail(clientNameCell){
