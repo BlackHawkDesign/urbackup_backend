@@ -1,5 +1,5 @@
 import {Client}   from './../models/client';
-import {ClientFilterRequest} from './../models/clientFilterRequest';
+import {ClientSearchRequest} from './../models/clientSearchRequest';
 
 export class ClientService {
 	clients : Client[];
@@ -11,15 +11,15 @@ export class ClientService {
 		];
 	}
 	
-	getClients(filterRequest: ClientFilterRequest) { 
-		var filteredClients = [];
+	getClients(searchRequest: ClientSearchRequest) { 
+		var clients = [];
 		
 		for (var i in this.clients){
-			if(this.clients[i].name.toUpperCase().search(filterRequest.name.toUpperCase()) != -1){
-				filteredClients.push(this.clients[i]);
+			if(this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) != -1){
+				clients.push(this.clients[i]);
 			}
 		}
 		
-		return filteredClients; 
+		return clients; 
 	}
 }

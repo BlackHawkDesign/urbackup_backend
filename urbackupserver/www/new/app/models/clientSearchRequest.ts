@@ -1,4 +1,4 @@
-export class ClientFilterRequest {
+export class ClientSearchRequest {
   name: string;
   online: string;
   status: string;

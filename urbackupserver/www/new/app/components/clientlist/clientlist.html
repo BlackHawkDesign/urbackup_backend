@@ -15,7 +15,7 @@
 			</tr>
 			<tr class="filterRow">
 				<th>&nbsp;</th>
-				<th><input [(ngModel)]="filter.name" type="text" class="form-control small" (keyup)="executeFilter()"/></th>
+				<th><input [(ngModel)]="searchRequest.name" type="text" class="form-control small" (keyup)="executeFilter()"/></th>
 				<th>
 					<select class="form-control">
 						<option>Select</option>
@@ -41,7 +41,7 @@
 		<tbody *ngFor="#client of clients">
 			<tr>
 				<td><input type="checkbox"/></td>
-				<td class="clickable" (click)="displayDetail(this)">{{client.name}}</td>
+				<td class="clickable" (click)="displayDetail($event)">{{client.name}}</td>
 				<td><span class="label label-success">Online</span></td>
 				<td>
 					<div class="progress">

@@ -1,4 +1,4 @@
-System.register(['angular2/core', './../../models/clientFilterRequest', './../../services/client.service'], function(exports_1, context_1) {
+System.register(['angular2/core', './../../models/clientSearchRequest', './../../services/client.service'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -10,15 +10,15 @@ System.register(['angular2/core', './../../models/clientFilterRequest', './../..
     var __metadata = (this && this.__metadata) || function (k, v) {
         if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
     };
-    var core_1, clientFilterRequest_1, client_service_1;
+    var core_1, clientSearchRequest_1, client_service_1;
     var ClientListComponent;
     return {
         setters:[
             function (core_1_1) {
                 core_1 = core_1_1;
             },
-            function (clientFilterRequest_1_1) {
-                clientFilterRequest_1 = clientFilterRequest_1_1;
+            function (clientSearchRequest_1_1) {
+                clientSearchRequest_1 = clientSearchRequest_1_1;
             },
             function (client_service_1_1) {
                 client_service_1 = client_service_1_1;
@@ -27,16 +27,16 @@ System.register(['angular2/core', './../../models/clientFilterRequest', './../..
             ClientListComponent = (function () {
                 function ClientListComponent(clientService) {
                     this.clientService = clientService;
-                    this.filter = new clientFilterRequest_1.ClientFilterRequest();
+                    this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
                     this.executeFilter();
                 }
                 ClientListComponent.prototype.executeFilter = function () {
-                    this.clients = this.clientService.getClients(this.filter);
+                    this.clients = this.clientService.getClients(this.searchRequest);
                 };
-                ClientListComponent.prototype.displayDetail = function (clientNameCell) {
-                    var row = $(clientNameCell).parent();
+                ClientListComponent.prototype.displayDetail = function (event) {
+                    var row = $(event.currentTarget).parent();
                     var detailRow = row.next();
-                    detailRow.show();
+                    detailRow.toggle();
                 };
                 ClientListComponent = __decorate([
                     core_1.Component({

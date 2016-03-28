@@ -1,6 +1,6 @@
 import {Component} from 'angular2/core';
 import {Client} from './../../models/client';
-import {ClientFilterRequest} from './../../models/clientFilterRequest';
+import {ClientSearchRequest} from './../../models/clientSearchRequest';
 import {ClientService} from './../../services/client.service';
 
 @Component({
@@ -12,21 +12,21 @@ import {ClientService} from './../../services/client.service';
 export class ClientListComponent {  
 	clientService : ClientService;
 	clients : Client[];
-	filter : ClientFilterRequest;
+	searchRequest : ClientSearchRequest;
 	
 	constructor(clientService: ClientService) {
 		this.clientService = clientService;
-		this.filter = new ClientFilterRequest();
+		this.searchRequest = new ClientSearchRequest();
 		this.executeFilter();
 	}
 	
 	executeFilter(){
-		this.clients = this.clientService.getClients(this.filter);
+		this.clients = this.clientService.getClients(this.searchRequest);
 	}
 	
-	displayDetail(clientNameCell){
-		var row = $(clientNameCell).parent();
+	displayDetail(event: any){
+		var row = $(event.currentTarget).parent();
 		var detailRow = row.next();
-		detailRow.show();
+		detailRow.toggle();
 	}
 }

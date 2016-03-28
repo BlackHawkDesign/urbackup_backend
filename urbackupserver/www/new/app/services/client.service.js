@@ -16,14 +16,14 @@ System.register(['./../models/client'], function(exports_1, context_1) {
                         new client_1.Client("PC2")
                     ];
                 }
-                ClientService.prototype.getClients = function (filterRequest) {
-                    var filteredClients = [];
+                ClientService.prototype.getClients = function (searchRequest) {
+                    var clients = [];
                     for (var i in this.clients) {
-                        if (this.clients[i].name.toUpperCase().search(filterRequest.name.toUpperCase()) != -1) {
-                            filteredClients.push(this.clients[i]);
+                        if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) != -1) {
+                            clients.push(this.clients[i]);
                         }
                     }
-                    return filteredClients;
+                    return clients;
                 };
                 return ClientService;
             }());
