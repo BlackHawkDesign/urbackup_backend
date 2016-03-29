@@ -24,6 +24,9 @@ System.register(['angular2/core', 'angular2/router'], function(exports_1, contex
             MenuComponent = (function () {
                 function MenuComponent() {
                 }
+                MenuComponent.prototype.getActiveClass = function (path) {
+                    return true ? 'active' : '';
+                };
                 MenuComponent = __decorate([
                     core_1.Component({
                         selector: 'menu',

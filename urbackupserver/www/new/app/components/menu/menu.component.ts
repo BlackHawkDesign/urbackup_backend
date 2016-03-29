@@ -7,4 +7,9 @@ import {ROUTER_DIRECTIVES,ROUTER_PROVIDERS} from 'angular2/router';
 	directives: [ROUTER_DIRECTIVES]
 })
 
-export class MenuComponent {  }
+export class MenuComponent {  
+	
+	getActiveClass(path : string){
+		return true ? 'active' : '';
+	}
+}
