@@ -10,6 +10,8 @@ System.register([], function(exports_1, context_1) {
                     this.name = "";
                     this.online = "";
                     this.status = "";
+                    this.page = 1;
+                    this.pageSize = 50;
                 }
                 return ClientSearchRequest;
             }());
