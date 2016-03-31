@@ -15,7 +15,7 @@
 			</tr>
 			<tr class="filterRow">
 				<th>&nbsp;</th>
-				<th><input [(ngModel)]="searchRequest.name" type="text" class="form-control small" (keyup)="executeFilter()"/></th>
+				<th><input [(ngModel)]="searchRequest.name" type="text" class="form-control small" (keyup)="search()"/></th>
 				<th>
 					<select class="form-control">
 						<option>Select</option>
@@ -34,14 +34,14 @@
 				</th>
 				<th>&nbsp;</th>
 				<th class="text-right">
-					<button class="btn btn-default" (click)="executeFilter()">Filter</button>
+					<button class="btn btn-default" (click)="search()">Filter</button>
 				</th>
 			</tr>
 		</thead>
-		<tbody *ngFor="#client of clients">
+		<tbody *ngFor="#client of searchResult.clients">
 			<tr>
-				<td><input type="checkbox"/></td>
-				<td class="clickable" (click)="displayDetail($event)">{{client.name}}</td>
+				<td><input type="checkbox" (change)="toggleClient($event,client)"/></td>
+				<td class="clickable" (click)="toggleClientDetail($event)">{{client.name}}</td>
 				<td><span class="label label-success">Online</span></td>
 				<td>
 					<div class="progress">
@@ -102,7 +102,7 @@
 			<tr>
 				<td colspan="3">
 					<span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
-					<span>5 clients selected</span>
+					<span>{{getSelectedClients().lenght}} clients selected</span>
 					<div class="btn-group">
 						<button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Bulk action <span class="caret"></span></button>
 						<ul class="dropdown-menu pull-right">

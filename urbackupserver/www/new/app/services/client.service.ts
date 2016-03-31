@@ -1,5 +1,6 @@
 import {Client}   from './../models/client';
 import {ClientSearchRequest} from './../models/clientSearchRequest';
+import {ClientSearchResult} from './../models/clientSearchResult';
 
 export class ClientService {
 	clients : Client[];
@@ -20,6 +21,6 @@ export class ClientService {
 			}
 		}
 		
-		return clients; 
+		return new ClientSearchResult(searchRequest, clients); 
 	}
 }

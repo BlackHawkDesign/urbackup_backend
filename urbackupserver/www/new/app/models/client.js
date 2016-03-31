@@ -8,6 +8,7 @@ System.register([], function(exports_1, context_1) {
             Client = (function () {
                 function Client(name) {
                     this.name = name;
+                    this.selected = false;
                 }
                 return Client;
             }());

@@ -1,12 +1,15 @@
-System.register(['./../models/client'], function(exports_1, context_1) {
+System.register(['./../models/client', './../models/clientSearchResult'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
-    var client_1;
+    var client_1, clientSearchResult_1;
     var ClientService;
     return {
         setters:[
             function (client_1_1) {
                 client_1 = client_1_1;
+            },
+            function (clientSearchResult_1_1) {
+                clientSearchResult_1 = clientSearchResult_1_1;
             }],
         execute: function() {
             ClientService = (function () {
@@ -23,7 +26,7 @@ System.register(['./../models/client'], function(exports_1, context_1) {
                             clients.push(this.clients[i]);
                         }
                     }
-                    return clients;
+                    return new clientSearchResult_1.ClientSearchResult(searchRequest, clients);
                 };
                 return ClientService;
             }());

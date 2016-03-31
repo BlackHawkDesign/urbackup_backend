@@ -28,15 +28,27 @@ System.register(['angular2/core', './../../models/clientSearchRequest', './../..
                 function ClientListComponent(clientService) {
                     this.clientService = clientService;
                     this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
-                    this.executeFilter();
+                    this.search();
                 }
-                ClientListComponent.prototype.executeFilter = function () {
-                    this.clients = this.clientService.getClients(this.searchRequest);
+                ClientListComponent.prototype.search = function () {
+                    this.searchResult = this.clientService.getClients(this.searchRequest);
                 };
-                ClientListComponent.prototype.displayDetail = function (event) {
+                ClientListComponent.prototype.toggleClientDetail = function (event) {
                     var row = $(event.currentTarget).parent();
                     var detailRow = row.next();
                     detailRow.toggle();
+                };
+                ClientListComponent.prototype.toggleClient = function (event, client) {
+                    client.selected = event.currentTarget.checked;
+                };
+                ClientListComponent.prototype.getSelectedClients = function () {
+                    var clients = [];
+                    for (var i in this.searchResult.clients) {
+                        if (this.searchResult.clients[i].selected) {
+                            clients.push(this.searchResult.clients[i]);
+                        }
+                    }
+                    return clients;
                 };
                 ClientListComponent = __decorate([
                     core_1.Component({
