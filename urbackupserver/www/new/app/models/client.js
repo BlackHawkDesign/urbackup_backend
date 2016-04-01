@@ -16,4 +16,25 @@ System.register([], function(exports_1, context_1) {
         }
     }
 });
+/*
+
+{
+         "client_version_string":"",
+         "delete_pending":"",
+         "file_ok":false,
+         "id":1,
+         "image_ok":false,
+         "ip":"-",
+         "lastbackup":"",
+         "lastbackup_image":"",
+         "lastseen":"2016-03-31 20:35",
+         "name":"test1",
+         "online":false,
+         "os_version_string":"",
+         "processes":[
+
+         ],
+         "status":0
+      },
+      */ 
 //# sourceMappingURL=client.js.map

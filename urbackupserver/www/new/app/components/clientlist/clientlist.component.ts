@@ -34,7 +34,7 @@ export class ClientListComponent {
 		client.selected = event.currentTarget.checked;	
 	}
 	
-	getSelectedClients(){
+	getSelectedClients(){		
 		var clients = [];
 		
 		for (var i in this.searchResult.clients){

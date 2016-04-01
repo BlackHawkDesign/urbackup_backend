@@ -13,10 +13,42 @@ System.register(['./../models/client', './../models/clientSearchResult'], functi
             }],
         execute: function() {
             ClientService = (function () {
+                /*
+                id: number;
+              name: string;
+              fileOk: boolean;
+              imageOk: boolean;
+              lastFileBackup: Date;
+              lastImageBackup: Date;
+              lastSeen: Date;
+              Online: boolean;
+              OsVersion: string;
+              selected: boolean;
+              Status: number;*/
                 function ClientService() {
+                    var client = new client_1.Client("Pc1");
+                    client.id = 1;
+                    client.fileOk = true;
+                    client.imageOk = true;
+                    client.lastFileBackup = new Date("2016-03-01");
+                    client.lastFileBackup = new Date("2016-03-02");
+                    client.lastSeen = new Date();
+                    client.online = true;
+                    client.osVersion = "Windows 7 64 biit";
+                    client.status = 0;
+                    var client2 = new client_1.Client("Pc1");
+                    client2.id = 1;
+                    client2.fileOk = true;
+                    client2.imageOk = true;
+                    client2.lastFileBackup = new Date("2016-03-01");
+                    client2.lastFileBackup = new Date("2016-03-02");
+                    client2.lastSeen = new Date();
+                    client2.online = false;
+                    client2.osVersion = "Windows 7 64 biit";
+                    client2.status = 0;
                     this.clients = [
-                        new client_1.Client("Pc1"),
-                        new client_1.Client("PC2")
+                        client,
+                        client2
                     ];
                 }
                 ClientService.prototype.getClients = function (searchRequest) {
