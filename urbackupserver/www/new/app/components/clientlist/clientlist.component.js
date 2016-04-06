@@ -41,6 +41,11 @@ System.register(['angular2/core', './../../models/clientSearchRequest', './../..
                 ClientListComponent.prototype.toggleClient = function (event, client) {
                     client.selected = event.currentTarget.checked;
                 };
+                ClientListComponent.prototype.toggleAllClients = function (event) {
+                    for (var i in this.searchResult.clients) {
+                        this.searchResult.clients[i].selected = event.currentTarget.checked;
+                    }
+                };
                 ClientListComponent.prototype.getSelectedClients = function () {
                     var clients = [];
                     for (var i in this.searchResult.clients) {

@@ -36,7 +36,7 @@ System.register(['./../models/client', './../models/clientSearchResult'], functi
                     client.online = true;
                     client.osVersion = "Windows 7 64 biit";
                     client.status = 0;
-                    var client2 = new client_1.Client("Pc1");
+                    var client2 = new client_1.Client("Pc2");
                     client2.id = 1;
                     client2.fileOk = true;
                     client2.imageOk = true;

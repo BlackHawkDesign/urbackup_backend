@@ -34,6 +34,12 @@ export class ClientListComponent {
 		client.selected = event.currentTarget.checked;	
 	}
 	
+	toggleAllClients(event: any){
+		for (var i in this.searchResult.clients){
+			this.searchResult.clients[i].selected = event.currentTarget.checked;	
+		}
+	}
+	
 	getSelectedClients(){		
 		var clients = [];
 		

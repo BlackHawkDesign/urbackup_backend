@@ -3,7 +3,7 @@
 	<table class="table">
 		<thead>
 			<tr>
-				<th><input type="checkbox"/></th>
+				<th><input type="checkbox" (change)="toggleAllClients($event);"/></th>
 				<th>
 					Computer name
 					<span class="glyphicon glyphicon-triangle-bottom"></span>
@@ -40,7 +40,7 @@
 		</thead>
 		<tbody *ngFor="#client of searchResult.clients">
 			<tr>
-				<td><input type="checkbox" (change)="toggleClient($event,client)"/></td>
+				<td><input type="checkbox" [ngModel]="client.selected" class="js-client-selector" (change)="toggleClient($event,client)"/></td>
 				<td class="clickable" (click)="toggleClientDetail($event)">{{client.name}}</td>
 				<td [ngSwitch]="client.online">
 					<span >
