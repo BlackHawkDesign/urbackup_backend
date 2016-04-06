@@ -614,15 +614,22 @@ bool FullFileBackup::doFileBackup()
 			bool b=list_parser.nextEntry(buffer[i], cf, NULL);
 			if(b)
 			{
-				if(cf.isdir && line<max_line)
+				if(cf.isdir)
 				{
 					if(cf.name!="..")
 					{
-						size_t curr_last_modified_offset=0;
-						size_t curr_output_offset = output_offset;
-						writeFileItem(clientlist, cf, &output_offset, &curr_last_modified_offset);
+						if (line < max_line)
+						{
+							size_t curr_last_modified_offset = 0;
+							size_t curr_output_offset = output_offset;
+							writeFileItem(clientlist, cf, &output_offset, &curr_last_modified_offset);
 
-						last_modified_offsets.push(curr_output_offset+curr_last_modified_offset);
+							last_modified_offsets.push(curr_output_offset + curr_last_modified_offset);
+						}
+						else
+						{
+							last_modified_offsets.push(std::string::npos);
+						}
 
 						if(cf.name=="urbackup_backup_scripts")
 						{
@@ -633,7 +640,8 @@ bool FullFileBackup::doFileBackup()
 					{
 						if(!script_dir
 							&& metadata_download_thread.get()!=NULL
-							&& !metadata_download_thread->hasMetadataId(line+1))
+							&& !metadata_download_thread->hasMetadataId(line+1)
+							&& last_modified_offsets.top()!= std::string::npos)
 						{
 							has_all_metadata=false;
 
@@ -668,7 +676,10 @@ bool FullFileBackup::doFileBackup()
 							}
 						}
 
-						writeFileItem(clientlist, cf, &output_offset);
+						if (line < max_line)
+						{
+							writeFileItem(clientlist, cf, &output_offset);
+						}
 
 						script_dir=false;
 						last_modified_offsets.pop();
@@ -798,7 +809,11 @@ bool FullFileBackup::doFileBackup()
 		ServerLogger::Log(logid, PrettyPrintBytes(linked_bytes) + " of files were already present on the server and did not need to be transferred", LL_INFO);
 	}
 
-	ClientMain::run_script("urbackup" + os_file_sep() + "post_full_filebackup", "\""+ backuppath + "\"", logid);
+	if (!ClientMain::run_script("urbackup" + os_file_sep() + "post_full_filebackup",
+		"\"" + backuppath + "\" " + ((c_has_error || r_offline || disk_error) ? "0" : "1") + " " + convert(group), logid))
+	{
+		c_has_error = true;
+	}
 
 	if(c_has_error)
 		return false;

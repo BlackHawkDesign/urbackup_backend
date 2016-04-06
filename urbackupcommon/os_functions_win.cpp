@@ -519,6 +519,11 @@ bool os_create_dir(const std::string &dir)
 
 bool os_create_hardlink(const std::string &linkname, const std::string &fname, bool use_ioref, bool* too_many_links)
 {
+	if (use_ioref)
+	{
+		return false;
+	}
+
 	BOOL r=CreateHardLinkW(ConvertToWchar(linkname).c_str(), ConvertToWchar(fname).c_str(), NULL);
 	if(too_many_links!=NULL)
 	{
@@ -1263,6 +1268,13 @@ bool copy_file(IFile *fsrc, IFile *fdst)
 bool os_path_absolute(const std::string& path)
 {
 	return PathIsRelativeW(ConvertToWchar(path).c_str())==FALSE;
+}
+
+std::string os_last_error_str()
+{
+	std::string msg;
+	int64 code = os_last_error(msg);
+	return trim(msg) + " (code: " + convert(code) + ")";
 }
 
 int os_popen(const std::string& cmd, std::string& ret)

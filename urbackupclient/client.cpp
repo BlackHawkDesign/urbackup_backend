@@ -65,6 +65,8 @@ volatile bool IdleCheckerThread::idle=false;
 volatile bool IdleCheckerThread::pause=false;
 volatile bool IndexThread::stop_index=false;
 std::map<std::string, std::string> IndexThread::filesrv_share_dirs;
+IMutex* IndexThread::cbt_shadow_id_mutex;
+std::map<std::string, int> IndexThread::cbt_shadow_ids;
 
 const char IndexThread::IndexThreadAction_StartFullFileBackup=0;
 const char IndexThread::IndexThreadAction_StartIncrFileBackup=1;
@@ -283,6 +285,9 @@ IndexThread::IndexThread(void)
 	if(filesrv_mutex==NULL)
 		filesrv_mutex=Server->createMutex();
 
+	if (cbt_shadow_id_mutex == NULL)
+		cbt_shadow_id_mutex = Server->createMutex();
+
 	contractor=NULL;
 
 	dwt=NULL;
@@ -322,6 +327,7 @@ IndexThread::~IndexThread()
 	Server->destroy(filelist_mutex);
 	Server->destroy(msgpipe);
 	Server->destroy(filesrv_mutex);
+	Server->destroy(cbt_shadow_id_mutex);
 	cd->destroyQueries();
 	delete cd;
 }
@@ -592,6 +598,18 @@ void IndexThread::operator()(void)
 				data.getStr(&index_clientsubname);
 			}
 
+			if (image_backup != 0)
+			{
+				int rc = execute_preimagebackup_hook(image_backup == 2, starttoken);
+
+				if (rc != 0)
+				{
+					VSSLog("Pre image backup hook failed with error code " + convert(rc), LL_ERROR);
+					contractor->Write("failed");
+					continue;
+				}
+			}
+
 			SCDirs *scd = getSCDir(scdir, index_clientsubname);
 			
 			if(scd->running==true && Server->getTimeSeconds()-scd->starttime<shadowcopy_timeout/1000)
@@ -601,13 +619,13 @@ void IndexThread::operator()(void)
 					scd->ref->dontincrement=true;
 				}
 				bool onlyref = false;
-				if(start_shadowcopy(scd, &onlyref, image_backup==1?true:false, std::vector<SCRef*>(), image_backup==1?true:false))
+				if(start_shadowcopy(scd, &onlyref, image_backup!=0?true:false, std::vector<SCRef*>(), image_backup!=0?true:false))
 				{
 					if (scd->ref!=NULL
 						&& scd->ref->cbt
 						&& !onlyref)
 					{
-						scd->ref->cbt = finishCbt(scd->orig_target);
+						scd->ref->cbt = finishCbt(scd->orig_target, image_backup!=0 ? scd->ref->save_id : -1);
 					}
 
 					if (scd->ref != NULL
@@ -661,7 +679,7 @@ void IndexThread::operator()(void)
 
 				Server->Log("Creating shadowcopy of \""+scd->dir+"\"...", LL_DEBUG);
 				bool onlyref = false;
-				bool b= start_shadowcopy(scd, &onlyref, image_backup==1?true:false, std::vector<SCRef*>(), image_backup==0?false:true);
+				bool b= start_shadowcopy(scd, &onlyref, image_backup!=0?true:false, std::vector<SCRef*>(), image_backup==0?false:true);
 				Server->Log("done.", LL_DEBUG);
 				if(!b || scd->ref==NULL)
 				{
@@ -684,7 +702,7 @@ void IndexThread::operator()(void)
 						&& scd->ref->cbt
 						&& !onlyref)
 					{
-						scd->ref->cbt = finishCbt(scd->orig_target);
+						scd->ref->cbt = finishCbt(scd->orig_target, image_backup != 0 ? scd->ref->save_id : -1);
 					}
 
 					if (scd->ref != NULL
@@ -732,7 +750,7 @@ void IndexThread::operator()(void)
 			SCDirs *scd = getSCDir(scdir, index_clientsubname);
 			if(scd->running==false )
 			{				
-				if(!release_shadowcopy(scd, image_backup==1?true:false, save_id))
+				if(!release_shadowcopy(scd, image_backup!=0?true:false, save_id))
 				{
 					Server->Log("Invalid action -- Creating shadow copy failed?", LL_ERROR);
 					contractor->Write("failed");
@@ -745,7 +763,7 @@ void IndexThread::operator()(void)
 			else
 			{
 				std::string release_dir=scd->dir;
-				bool b=release_shadowcopy(scd, image_backup==1?true:false, save_id);
+				bool b=release_shadowcopy(scd, image_backup!=0?true:false, save_id);
 				if(!b)
 				{
 					contractor->Write("failed");
@@ -1046,11 +1064,12 @@ void IndexThread::indexDirs(bool full_backup)
 			bool onlyref=true;
 			bool stale_shadowcopy=false;
 			bool shadowcopy_ok=false;
+			bool shadowcopy_not_configured = false;
 
 			if(filetype!=0 || !shadowcopy_optional)
 			{
 				VSSLog("Creating shadowcopy of \""+scd->dir+"\" in indexDirs()", LL_DEBUG);	
-				shadowcopy_ok=start_shadowcopy(scd, &onlyref, true, past_refs, false, &stale_shadowcopy);
+				shadowcopy_ok=start_shadowcopy(scd, &onlyref, true, past_refs, false, &stale_shadowcopy, &shadowcopy_not_configured);
 				VSSLog("done.", LL_DEBUG);
 			}
 			else if(shadowcopy_optional)
@@ -1068,7 +1087,7 @@ void IndexThread::indexDirs(bool full_backup)
 
 			if(!shadowcopy_ok)
 			{
-				if(!shadowcopy_optional)
+				if(!shadowcopy_optional && !shadowcopy_not_configured)
 				{
 					VSSLog("Creating snapshot of \""+scd->dir+"\" failed.", LL_ERROR);
 				}
@@ -1122,7 +1141,7 @@ void IndexThread::indexDirs(bool full_backup)
 					if (scd->ref!=NULL
 						&& scd->ref->cbt)
 					{
-						scd->ref->cbt = finishCbt(backup_dirs[i].path);
+						scd->ref->cbt = finishCbt(backup_dirs[i].path, -1);
 					}
 
 					int db_tgroup = (backup_dirs[i].flags & EBackupDirFlag_ShareHashes) ? 0 : (backup_dirs[i].group + 1);
@@ -2266,7 +2285,8 @@ bool IndexThread::find_existing_shadowcopy(SCDirs *dir, bool *onlyref, bool allo
 	return false;
 }
 
-bool IndexThread::start_shadowcopy(SCDirs *dir, bool *onlyref, bool allow_restart, std::vector<SCRef*> no_restart_refs, bool for_imagebackup, bool *stale_shadowcopy)
+bool IndexThread::start_shadowcopy(SCDirs *dir, bool *onlyref, bool allow_restart,
+	std::vector<SCRef*> no_restart_refs, bool for_imagebackup, bool *stale_shadowcopy, bool* not_configured)
 {
 	cleanup_saved_shadowcopies(true);
 
@@ -2314,7 +2334,7 @@ bool IndexThread::start_shadowcopy(SCDirs *dir, bool *onlyref, bool allow_restar
 #ifdef _WIN32
 	bool b = start_shadowcopy_win(dir, wpath, for_imagebackup, onlyref);
 #else
-	bool b = start_shadowcopy_lin(dir, wpath, for_imagebackup, onlyref);
+	bool b = start_shadowcopy_lin(dir, wpath, for_imagebackup, onlyref, not_configured);
 #endif
 
 	if(!b)
@@ -2899,7 +2919,7 @@ IFileServ *IndexThread::getFileSrv(void)
 	return filesrv;
 }
 
-int IndexThread::execute_hook(std::string script_name, bool incr, std::string server_token, int index_group)
+int IndexThread::execute_hook(std::string script_name, bool incr, std::string server_token, int* index_group)
 {
 	if (!FileExists(script_name))
 	{
@@ -2919,7 +2939,10 @@ int IndexThread::execute_hook(std::string script_name, bool incr, std::string se
 #endif
 
 	std::string output;
-	int rc = os_popen(quoted_script_name + " " + (incr ? "1" : "0") + " \"" + server_token + "\" " + convert(index_group)+" 2>&1", output);
+	int rc = os_popen(quoted_script_name + " " + (incr ? "1" : "0") + " \"" 
+		+ server_token + "\" "
+		+ (index_group!=NULL ? convert(*index_group) : "" )
+		+" 2>&1", output);
 
 	if (rc != 0 && !output.empty())
 	{
@@ -2944,7 +2967,7 @@ int IndexThread::execute_prebackup_hook(bool incr, std::string server_token, int
 	script_name = SYSCONFDIR "/urbackup/prefilebackup";
 #endif
 
-	return execute_hook(script_name, incr, server_token, index_group);
+	return execute_hook(script_name, incr, server_token, &index_group);
 }
 
 int IndexThread::execute_postindex_hook(bool incr, std::string server_token, int index_group)
@@ -2956,10 +2979,10 @@ int IndexThread::execute_postindex_hook(bool incr, std::string server_token, int
 	script_name = SYSCONFDIR "/urbackup/postfileindex";
 #endif
 
-	return execute_hook(script_name, incr, server_token, index_group);
+	return execute_hook(script_name, incr, server_token, &index_group);
 }
 
-void IndexThread::execute_postbackup_hook(void)
+void IndexThread::execute_postbackup_hook(std::string scriptname)
 {
 #ifdef _WIN32
 	STARTUPINFOW si;
@@ -2967,7 +2990,7 @@ void IndexThread::execute_postbackup_hook(void)
 	memset(&si, 0, sizeof(STARTUPINFO) );
 	memset(&pi, 0, sizeof(PROCESS_INFORMATION) );
 	si.cb=sizeof(STARTUPINFO);
-	if(!CreateProcessW(L"C:\\Windows\\system32\\cmd.exe", (LPWSTR)(L"cmd.exe /C \""+Server->ConvertToWchar(Server->getServerWorkingDir())+L"\\postfilebackup.bat\"").c_str(), NULL, NULL, false, NORMAL_PRIORITY_CLASS|CREATE_NO_WINDOW, NULL, NULL, &si, &pi) )
+	if(!CreateProcessW(L"C:\\Windows\\system32\\cmd.exe", (LPWSTR)(L"cmd.exe /C \""+Server->ConvertToWchar(Server->getServerWorkingDir()+"\\"+scriptname+".bat")+L"\"").c_str(), NULL, NULL, false, NORMAL_PRIORITY_CLASS|CREATE_NO_WINDOW, NULL, NULL, &si, &pi) )
 	{
 		Server->Log("Executing postfilebackup.bat failed: "+convert((int)GetLastError()), LL_INFO);
 	}
@@ -2986,7 +3009,8 @@ void IndexThread::execute_postbackup_hook(void)
 		pid2 = fork();
 		if(pid2==0)
 		{
-			const char* a1c = SYSCONFDIR "/urbackup/postfilebackup";
+			std::string fullname = std::string(SYSCONFDIR "/urbackup/") + scriptname;
+			const char* a1c = fullname.c_str();
 			char *a1=(char*)a1c;
 			char* const argv[]={ a1, NULL };
 			execv(a1, argv);
@@ -3646,6 +3670,16 @@ void IndexThread::addFileExceptions(std::vector<std::string>& exclude_dirs)
 
 		exclude_dirs.push_back(sanitizePattern(toks[i]));
 	}
+
+	char* systemdrive = NULL;
+	size_t bufferCount;
+	if (_dupenv_s(&systemdrive, &bufferCount, "SystemDrive") == 0)
+	{
+		std::string excl = std::string(systemdrive) + "\\swapfile.sys";
+		strupper(&excl);
+		exclude_dirs.push_back(excl);
+	}
+	free(systemdrive);
 #endif
 }
 
@@ -3893,80 +3927,23 @@ std::string IndexThread::getShaBinary( const std::string& fn )
 	}
 	else if (sha_version == 528)
 	{
-		int64 fsize1 = 0;
-		{
-			std::auto_ptr<IFile> f(Server->openFile(os_file_prefix(fn), MODE_READ_SEQUENTIAL_BACKUP));
-			if (f.get() != NULL)
-			{
-				fsize1 = f->Size();
-			}
-		}
-
 		TreeHash treehash;
 		if (!getShaBinary(fn, treehash))
 		{
 			return std::string();
 		}
 
-		std::string ret = treehash.finalize();
-
-		//TODO: Perf remove verification
-		std::auto_ptr<IFsFile>  f(Server->openFile(os_file_prefix(fn), MODE_READ_SEQUENTIAL_BACKUP));
-		IFile* hashoutput = Server->openTemporaryFile();
-		ScopedDeleteFile hashoutput_delete(hashoutput);
-		FsExtentIterator extent_iterator(f.get(), 512*1024);
-		TreeHash treehash2;
-		build_chunk_hashs(f.get(), hashoutput, NULL, NULL, false,
-			NULL, NULL, false, &treehash2, &extent_iterator);
-
-		int64 fsize2 = f->Size();
-
-		std::string other_ret = treehash2.finalize();
-		if (ret != other_ret  && fsize1 == fsize2)
-		{
-			Server->Log("Tree hash calc error at file " + fn, LL_ERROR);
-		}
-
-		assert(fsize1 != fsize2 || ret == other_ret);
-		return ret;
+		return treehash.finalize();
 	}
 	else
 	{
-		int64 fsize1 = 0;
-		{
-			std::auto_ptr<IFile> f(Server->openFile(os_file_prefix(fn), MODE_READ_SEQUENTIAL_BACKUP));
-			if (f.get() != NULL)
-			{
-				fsize1 = f->Size();
-			}
-		}
-
 		HashSha512 hash_512;
 		if (!getShaBinary(fn, hash_512))
 		{
 			return std::string();
 		}
 
-		std::string ret = hash_512.finalize();
-
-		//TODO: Perf remove verification
-		std::auto_ptr<IFsFile>  f(Server->openFile(os_file_prefix(fn), MODE_READ_SEQUENTIAL_BACKUP));
-		IFile* hashoutput = Server->openTemporaryFile();
-		ScopedDeleteFile hashoutput_delete(hashoutput);
-		FsExtentIterator extent_iterator(f.get(), 512*1024);
-		HashSha512 hash_512_other;
-		build_chunk_hashs(f.get(), hashoutput, NULL, NULL, false,
-			NULL, NULL, false, &hash_512_other, &extent_iterator);
-
-		int64 fsize2 = f->Size();
-		std::string other_sha = hash_512_other.finalize();
-		if (ret != other_sha && fsize1 == fsize2)
-		{
-			Server->Log("SHA calc error at file " + fn, LL_ERROR);
-		}
-
-		assert(fsize1 != fsize2 || ret == other_sha);
-		return ret;
+		return hash_512.finalize();
 	}
 }
 
@@ -4262,6 +4239,18 @@ std::string IndexThread::execute_script(const std::string& cmd)
 	}
 
 	return output;
+}
+
+int IndexThread::execute_preimagebackup_hook(bool incr, std::string server_token)
+{
+	std::string script_name;
+#ifdef _WIN32
+	script_name = Server->getServerWorkingDir() + "\\preimagebackup.bat";
+#else
+	script_name = SYSCONFDIR "/urbackup/preimagebackup";
+#endif
+
+	return execute_hook(script_name, incr, server_token, NULL);
 }
 
 bool IndexThread::addBackupScripts(std::fstream& outfile)
@@ -4610,28 +4599,9 @@ namespace
 bool IndexThread::prepareCbt(std::string volume)
 {
 #ifdef _WIN32
-	if (volume.empty())
+	if (!normalizeVolume(volume))
 	{
 		return false;
-	}
-
-	if (volume[volume.size() - 1] == '\\')
-	{
-		volume = volume.substr(0, volume.size() - 1);
-	}
-
-	if (volume.size() > 2)
-	{
-		volume = getVolPath(volume);
-
-		if (volume.empty())
-		{
-			return false;
-		}
-	}
-	else if (volume.size() == 1)
-	{
-		volume += ":";
 	}
 
 	HANDLE hVolume = CreateFileA(("\\\\.\\" + volume).c_str(), GENERIC_READ,
@@ -4674,7 +4644,7 @@ bool IndexThread::prepareCbt(std::string volume)
 #endif
 }
 
-bool IndexThread::finishCbt(std::string volume)
+bool IndexThread::normalizeVolume(std::string & volume)
 {
 #ifdef _WIN32
 	if (volume.empty())
@@ -4682,7 +4652,7 @@ bool IndexThread::finishCbt(std::string volume)
 		return false;
 	}
 
-	if (volume[volume.size() - 1] == '\\')
+	if (volume[volume.size() - 1] == os_file_sep()[0])
 	{
 		volume = volume.substr(0, volume.size() - 1);
 	}
@@ -4699,6 +4669,24 @@ bool IndexThread::finishCbt(std::string volume)
 	else if (volume.size() == 1)
 	{
 		volume += ":";
+	}
+
+	if (!volume.empty()
+		&& volume[volume.size() - 1] == os_file_sep()[0])
+	{
+		volume = volume.substr(0, volume.size() - 1);
+	}
+#endif
+
+	return true;
+}
+
+bool IndexThread::finishCbt(std::string volume, int shadow_id)
+{
+#ifdef _WIN32
+	if (!normalizeVolume(volume))
+	{
+		return false;
 	}
 
 	HANDLE hVolume = CreateFileA(("\\\\.\\" + volume).c_str(), GENERIC_READ|GENERIC_WRITE,
@@ -4803,6 +4791,18 @@ bool IndexThread::finishCbt(std::string volume)
 
 	std::auto_ptr<IFsFile> hdat_img(Server->openFile("urbackup\\hdat_img_" + conv_filename(volume) + ".dat", MODE_RW_CREATE));
 
+	bool concurrent_active = false;
+
+	if (hdat_img.get() == NULL)
+	{
+		hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(volume) + ".dat", MODE_RW_DEVICE));
+
+		if (hdat_img.get() != NULL)
+		{
+			concurrent_active = true;
+		}
+	}	
+
 	if (hdat_img.get() == NULL)
 	{
 		std::string errmsg;
@@ -4812,6 +4812,22 @@ bool IndexThread::finishCbt(std::string volume)
 	}
 
 	hdat_img->Resize(bitmap_data->BitmapSize * 8 * SHA256_DIGEST_SIZE);
+
+	if (hdat_img->Write(0, reinterpret_cast<char*>(&shadow_id), sizeof(shadow_id)) != sizeof(shadow_id))
+	{
+		VSSLog("Error writing shadow id", LL_ERROR);
+		return false;
+	}
+
+	{
+		IScopedLock lock(cbt_shadow_id_mutex);
+		cbt_shadow_ids[strlower(volume)] = shadow_id;
+	}
+
+	if (concurrent_active)
+	{
+		Server->wait(10000);
+	}
 
 	char zero_sha[SHA256_DIGEST_SIZE] = {};
 
@@ -4830,7 +4846,7 @@ bool IndexThread::finishCbt(std::string volume)
 			{
 				if ((ch & (1 << bit))>0)
 				{
-					if (hdat_img->Write((curr_bit * 8 + bit)*SHA256_DIGEST_SIZE, zero_sha, SHA256_DIGEST_SIZE) != SHA256_DIGEST_SIZE)
+					if (hdat_img->Write(sizeof(shadow_id) + (curr_bit * 8 + bit)*SHA256_DIGEST_SIZE, zero_sha, SHA256_DIGEST_SIZE) != SHA256_DIGEST_SIZE)
 					{
 						std::string errmsg;
 						int64 err = os_last_error(errmsg);
@@ -4911,28 +4927,9 @@ bool IndexThread::finishCbt(std::string volume)
 bool IndexThread::disableCbt(std::string volume)
 {
 #ifdef _WIN32
-	if (volume.empty())
+	if (!normalizeVolume(volume))
 	{
 		return false;
-	}
-
-	if (volume[volume.size() - 1] == '\\')
-	{
-		volume = volume.substr(0, volume.size() - 1);
-	}
-
-	if (volume.size() > 2)
-	{
-		volume = getVolPath(volume);
-
-		if (volume.empty())
-		{
-			return false;
-		}
-	}
-	else if (volume.size() == 1)
-	{
-		volume += ":";
 	}
 
 	Server->deleteFile("urbackup\\hdat_file_" + conv_filename(volume) + ".dat");
@@ -4948,6 +4945,11 @@ bool IndexThread::disableCbt(std::string volume)
 void IndexThread::enableCbtVol(std::string volume, bool install)
 {
 #ifdef _WIN32
+	if (!normalizeVolume(volume))
+	{
+		return;
+	}
+
 	std::string allowed_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz:";
 	
@@ -5509,7 +5511,7 @@ bool IndexThread::start_shadowcopy_win( SCDirs * dir, std::string &wpath, bool f
 #endif //_WIN32
 
 #ifndef _WIN32
-bool IndexThread::start_shadowcopy_lin( SCDirs * dir, std::string &wpath, bool for_imagebackup, bool * &onlyref )
+bool IndexThread::start_shadowcopy_lin( SCDirs * dir, std::string &wpath, bool for_imagebackup, bool * &onlyref, bool* not_configured)
 {
 	std::string scriptname;
 	if(dir->fileserv)
@@ -5525,6 +5527,10 @@ bool IndexThread::start_shadowcopy_lin( SCDirs * dir, std::string &wpath, bool f
 
 	if (scriptlocation.empty())
 	{
+		if (not_configured != NULL)
+		{
+			*not_configured = true;
+		}
 		return false;
 	}
 
@@ -5537,7 +5543,7 @@ bool IndexThread::start_shadowcopy_lin( SCDirs * dir, std::string &wpath, bool f
 
 	if(rc!=0)
 	{
-		VSSLog("Creating snapshot of "+dir->orig_target+" failed", LL_ERROR);
+		VSSLog("Creating snapshot of \""+dir->orig_target+"\" failed", LL_ERROR);
 		VSSLogLines(loglines, LL_ERROR);
 		return false;
 	}
@@ -5647,5 +5653,18 @@ std::string IndexThread::escapeDirParam( const std::string& dir )
 	return "\""+greplace("\"", "\\\"", dir)+"\"";
 }
 
+int IndexThread::getShadowId(const std::string & volume)
+{
+	IScopedLock lock(cbt_shadow_id_mutex);
 
+	std::map<std::string, int>::iterator it = cbt_shadow_ids.find(strlower(volume));
 
+	if (it != cbt_shadow_ids.end())
+	{
+		return it->second;
+	}
+	else
+	{
+		return -1;
+	}
+}

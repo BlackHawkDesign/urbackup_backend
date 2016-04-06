@@ -1019,7 +1019,7 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 									{
 										ServerStatus::setProcessDoneBytes(clientname, status_id, numblocks*blocksize);
 										ServerStatus::setProcessPcDone(clientname, status_id,
-											(int)(((double)numblocks/(double)blockcnt)*100.0+0.5) );
+											(int)(((double)numblocks/(double)((blockcnt>0 ? blockcnt : -blockcnt)))*100.0+0.5) );
 									}
 								}
 							}
@@ -1215,6 +1215,12 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 								ServerLogger::Log(logid, "(Before compression: "+PrettyPrintBytes(transferred_bytes_real)+" ratio: "+convert((float)transferred_bytes_real/transferred_bytes)+")");
 							}
 
+							if (!runPostBackupScript(!pParentvhd.empty() && !synthetic_full && incremental != 0,
+								imagefn, pLetter, !vhdfile_err))
+							{
+								return false;
+							}
+
 							return !vhdfile_err;
 						}
 						else if(currblock==-124 ||
@@ -1404,6 +1410,8 @@ do_image_cleanup:
 		Server->destroy(cc);
 
 	running_updater->stop();
+
+	runPostBackupScript(!pParentvhd.empty() && !synthetic_full && incremental!=0, imagefn, pLetter, false);
 
 	if(vhdfile!=NULL)
 	{
@@ -1734,4 +1742,20 @@ std::string ImageBackup::getMBR(const std::string &dl)
 	}
 
 	return "";
+}
+
+bool ImageBackup::runPostBackupScript(bool incr, const std::string& path, const std::string &pLetter, bool success)
+{
+	std::string script_name;
+	if (!incr)
+	{
+		script_name = "post_full_imagebackup";
+	}
+	else
+	{
+		script_name = "post_incr_imagebackup";
+	}
+
+	return ClientMain::run_script("urbackup" + os_file_sep() + script_name,
+		"\""+ path+"\" \"" + pLetter + "\" " + (success ? "1" : "0"), logid);
 }

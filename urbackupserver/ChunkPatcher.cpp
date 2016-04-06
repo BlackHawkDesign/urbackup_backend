@@ -219,7 +219,8 @@ bool ChunkPatcher::ApplyPatch(IFile *file, IFile *patch, ExtentIterator* extent_
 				}
 				else
 				{
-					cb->next_chunk_patcher_bytes(NULL, tr, false);
+					bool is_sparse = true;
+					cb->next_chunk_patcher_bytes(NULL, tr, false, &is_sparse);
 					file_pos += tr;
 				}
 				was_sparse = true;
@@ -291,7 +292,16 @@ bool ChunkPatcher::ApplyPatch(IFile *file, IFile *patch, ExtentIterator* extent_
 					}
 
 					bool is_sparse = false;
-					cb->next_chunk_patcher_bytes(NULL, tr, false, &is_sparse);
+					bool* p_is_sparse = &is_sparse;
+
+					if (unchanged_align != 0
+						&& tr < unchanged_align
+						&& last_sparse_start == -1)
+					{
+						p_is_sparse = NULL;
+					}
+
+					cb->next_chunk_patcher_bytes(NULL, tr, false, p_is_sparse);
 					last_unchanged = true;
 
 					if (is_sparse)
@@ -380,7 +390,8 @@ void ChunkPatcher::nextChunkPatcherBytes(int64 pos, const char * buf, size_t bsi
 			last_sparse_start = roundUp(pos, sparse_blocksize);
 		}
 
-		cb->next_chunk_patcher_bytes(NULL, bsize, changed);
+		bool is_sparse = true;
+		cb->next_chunk_patcher_bytes(NULL, bsize, changed, &is_sparse);
 
 		return;
 	}
@@ -398,7 +409,8 @@ void ChunkPatcher::nextChunkPatcherBytes(int64 pos, const char * buf, size_t bsi
 					last_sparse_start = pos;
 				}
 
-				cb->next_chunk_patcher_bytes(NULL, bsize, changed);
+				bool is_sparse = true;
+				cb->next_chunk_patcher_bytes(NULL, bsize, changed, &is_sparse);
 
 				return;
 			}
@@ -459,7 +471,8 @@ void ChunkPatcher::nextChunkPatcherBytes(int64 pos, const char * buf, size_t bsi
 			}
 			else
 			{
-				cb->next_chunk_patcher_bytes(NULL, sparse_blocksize, curr_changed);
+				bool is_sparse = true;
+				cb->next_chunk_patcher_bytes(NULL, sparse_blocksize, curr_changed, &is_sparse);
 			}
 
 			curr_only_zeros = true;

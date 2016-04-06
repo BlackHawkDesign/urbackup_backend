@@ -38,7 +38,8 @@ const size_t output_max_size=32*1024;
 CompressedPipe2::CompressedPipe2(IPipe *cs, int compression_level)
 	: cs(cs), has_error(false),
 	uncompressed_sent_bytes(0), uncompressed_received_bytes(0), sent_flushes(0),
-	input_buffer_size(0), read_mutex(Server->createMutex()), write_mutex(Server->createMutex())
+	input_buffer_size(0), read_mutex(Server->createMutex()), write_mutex(Server->createMutex()),
+	last_send_time(Server->getTimeMS())
 {
 	comp_buffer.resize(4096);
 	input_buffer.resize(16384);
@@ -71,6 +72,7 @@ CompressedPipe2::~CompressedPipe2(void)
 size_t CompressedPipe2::Read(char *buffer, size_t bsize, int timeoutms)
 {
 	IScopedLock lock(read_mutex.get());
+	VLOG(Server->Log("Read bsize=" + convert(bsize) + " timeoutms=" + convert(timeoutms)+" input_buffer_size="+convert(input_buffer_size), LL_DEBUG));
 
 	if(input_buffer_size>0)
 	{
@@ -141,6 +143,7 @@ size_t CompressedPipe2::Read(char *buffer, size_t bsize, int timeoutms)
 
 size_t CompressedPipe2::ProcessToBuffer(char *buffer, size_t bsize, bool fromLast)
 {
+	VLOG(Server->Log("bsize=" + convert(bsize) + " fromLast=" + convert(fromLast), LL_DEBUG));
 	bool set_out=false;
 	if(fromLast)
 	{
@@ -159,7 +162,8 @@ size_t CompressedPipe2::ProcessToBuffer(char *buffer, size_t bsize, bool fromLas
 
 		if(rc!=Z_OK && rc!=Z_STREAM_END && rc!=Z_BUF_ERROR /*Needs more input*/)
 		{
-			Server->Log("Error decompressing stream(1): "+convert(rc));
+			Server->Log("Error decompressing stream(1): " + convert(rc)
+				+ (inf_stream.msg != NULL ? (" Err: " + std::string(inf_stream.msg)) : ""), LL_ERROR);
 			has_error=true;
 			return 0;
 		}
@@ -194,7 +198,8 @@ size_t CompressedPipe2::ProcessToBuffer(char *buffer, size_t bsize, bool fromLas
 
 	if(rc!=Z_OK && rc!=Z_STREAM_END && rc != Z_BUF_ERROR /*Needs more input*/)
 	{
-		Server->Log("Error decompressing stream(2): "+convert(rc));
+		Server->Log("Error decompressing stream(2): "+convert(rc)
+			+ (inf_stream.msg != NULL ? (" Err: " + std::string(inf_stream.msg)) : ""), LL_ERROR);
 		has_error=true;
 		return 0;
 	}
@@ -238,7 +243,9 @@ void CompressedPipe2::ProcessToString(std::string* ret, bool fromLast )
 			data_pos+=avail;
 		}
 
-	} while (inf_stream.avail_out==0);
+		fromLast = true;
+
+	} while (input_buffer_size!=0);
 }
 
 bool CompressedPipe2::Write(const char *buffer, size_t bsize, int timeoutms, bool flush)
@@ -259,6 +266,12 @@ bool CompressedPipe2::Write(const char *buffer, size_t bsize, int timeoutms, boo
 		bool has_next = bsize>0;
 		bool curr_flush = has_next ? false : flush;
 
+		if (!curr_flush
+			&& Server->getTimeMS() - last_send_time > 1000)
+		{
+			curr_flush = true;
+		}
+
 		if(curr_flush)
 		{
 			++sent_flushes;
@@ -278,7 +291,8 @@ bool CompressedPipe2::Write(const char *buffer, size_t bsize, int timeoutms, boo
 
 			if(rc!=Z_OK && rc!=Z_STREAM_END && rc!=Z_BUF_ERROR)
 			{
-				Server->Log("Error compressing stream: "+convert(rc));
+				Server->Log("Error compressing stream: "+convert(rc)
+					+ (def_stream.msg != NULL ? (" Err: " + std::string(def_stream.msg)) : ""), LL_ERROR);
 				has_error=true;
 				return false;
 			}
@@ -307,6 +321,8 @@ bool CompressedPipe2::Write(const char *buffer, size_t bsize, int timeoutms, boo
 
 			if(used>0)
 			{
+				last_send_time = Server->getTimeMS();
+
 				bool b=cs->Write(comp_buffer.data(), used, curr_timeout, curr_flush);
 				if(!b)
 					return false;

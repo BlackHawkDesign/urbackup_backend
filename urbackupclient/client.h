@@ -180,7 +180,7 @@ public:
 	static void share_dirs();
 	static void unshare_dirs();
 	
-	static void execute_postbackup_hook(void);
+	static void execute_postbackup_hook(std::string scriptname);
 
 	static void doStop(void);
 	
@@ -197,6 +197,8 @@ public:
 	static std::string mapScriptOutputName(const std::string& fn);
 
 	static std::string getSHA256(const std::string& fn);
+
+	static int getShadowId(const std::string& volume);
 
 private:
 
@@ -222,7 +224,7 @@ private:
 
 	std::vector<SFileAndHash> getFilesProxy(const std::string &orig_path, std::string path, const std::string& named_path, bool use_db, const std::string& fn_filter, bool use_db_hashes);
 
-	bool start_shadowcopy(SCDirs *dir, bool *onlyref=NULL, bool allow_restart=false, std::vector<SCRef*> no_restart_refs=std::vector<SCRef*>(), bool for_imagebackup=false, bool *stale_shadowcopy=NULL);
+	bool start_shadowcopy(SCDirs *dir, bool *onlyref=NULL, bool allow_restart=false, std::vector<SCRef*> no_restart_refs=std::vector<SCRef*>(), bool for_imagebackup=false, bool *stale_shadowcopy=NULL, bool* not_configured=NULL);
 
 	bool find_existing_shadowcopy(SCDirs *dir, bool *onlyref, bool allow_restart, const std::string& wpath, const std::vector<SCRef*>& no_restart_refs, bool for_imagebackup, bool *stale_shadowcopy,
 		bool consider_only_own_tokens);
@@ -236,7 +238,7 @@ private:
 	bool check_writer_status(IVssBackupComponents *backupcom, std::string& errmsg, int loglevel, bool* retryable_error);
 	bool checkErrorAndLog(BSTR pbstrWriter, VSS_WRITER_STATE pState, HRESULT pHrResultFailure, std::string& errmsg, int loglevel, bool* retryable_error);
 #else
-	bool start_shadowcopy_lin( SCDirs * dir, std::string &wpath, bool for_imagebackup, bool * &onlyref );
+	bool start_shadowcopy_lin( SCDirs * dir, std::string &wpath, bool for_imagebackup, bool * &onlyref, bool* not_configured);
 	std::string get_snapshot_script_location(const std::string& name);
 	bool get_volumes_mounted_locally();
 #endif
@@ -251,10 +253,12 @@ private:
 
 	SCDirs* getSCDir(const std::string& path, const std::string& clientsubname);
 
-	int execute_hook(std::string script_name, bool incr, std::string server_token, int index_group);
+	int execute_hook(std::string script_name, bool incr, std::string server_token, int* index_group);
 	int execute_prebackup_hook(bool incr, std::string server_token, int index_group);
 	int execute_postindex_hook(bool incr, std::string server_token, int index_group);
 	std::string execute_script(const std::string& cmd);
+
+	int execute_preimagebackup_hook(bool incr, std::string server_token);
 
 	void start_filesrv(void);
 
@@ -315,9 +319,11 @@ private:
 
 	bool crashPersistentCbtIsEnabled(std::string clientsubname, std::string volume);
 
+	bool normalizeVolume(std::string& volume);
+
 	bool prepareCbt(std::string volume);
 
-	bool finishCbt(std::string volume);
+	bool finishCbt(std::string volume, int shadow_id);
 
 	bool disableCbt(std::string volume);
 
@@ -336,6 +342,9 @@ private:
 	static IMutex *filesrv_mutex;
 
 	static IPipe* msgpipe;
+
+	static IMutex* cbt_shadow_id_mutex;
+	static std::map<std::string, int> cbt_shadow_ids;
 
 	IPipe *contractor;
 

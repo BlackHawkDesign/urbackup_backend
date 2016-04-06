@@ -103,6 +103,7 @@ bool ImageThread::sendFullImageThread(void)
 	int64 last_shadowcopy_update = Server->getTimeSeconds();
 
 	std::auto_ptr<IFsFile> hdat_img;
+	std::string hdat_vol;
 
 	bool run=true;
 	while(run)
@@ -136,11 +137,24 @@ bool ImageThread::sendFullImageThread(void)
 
 			if (run)
 			{
-				hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter) + ".dat", MODE_RW));
+				hdat_vol = image_inf->image_letter;
+				hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter) + ".dat", MODE_RW_DEVICE));
 
 				if (hdat_img.get() == NULL)
 				{
-					hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter+":") + ".dat", MODE_RW));
+					hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter+":") + ".dat", MODE_RW_DEVICE));
+					hdat_vol = image_inf->image_letter + ":";
+				}
+
+				if (hdat_img.get() != NULL)
+				{
+					int r_shadow_id = -1;
+					hdat_img->Read(0, reinterpret_cast<char*>(&r_shadow_id), sizeof(r_shadow_id));
+
+					if (r_shadow_id != image_inf->shadow_id)
+					{
+						hdat_img.reset();
+					}
 				}
 			}
 		}
@@ -312,9 +326,14 @@ bool ImageThread::sendFullImageThread(void)
 								cs->sendBuffer(cb, 2*sizeof(int64)+c_hashsize, false);
 								notify_cs=true;
 
-								if (hdat_img.get() != NULL)
+								if (hdat_img.get() != NULL
+									&& IndexThread::getShadowId(hdat_vol)==image_inf->shadow_id)
 								{
-									hdat_img->Write((j / vhdblocks)*c_hashsize, reinterpret_cast<char*>(dig), c_hashsize);
+									hdat_img->Write(sizeof(int) + (j / vhdblocks)*c_hashsize, reinterpret_cast<char*>(dig), c_hashsize);
+								}
+								else
+								{
+									hdat_img.reset();
 								}
 							}
 							sha256_init(&shactx);
@@ -396,6 +415,7 @@ bool ImageThread::sendFullImageThread(void)
 	if (success && !image_inf->no_shadowcopy)
 	{
 		ClientConnector::updateLastBackup();
+		IndexThread::execute_postbackup_hook("postimagebackup");
 	}
 
 #ifdef VSS_XP //persistence
@@ -454,6 +474,7 @@ bool ImageThread::sendIncrImageThread(void)
 	int64 last_shadowcopy_update = Server->getTimeSeconds();
 
 	std::auto_ptr<IFsFile> hdat_img;
+	std::string hdat_vol;
 
 	bool run=true;
 	while(run)
@@ -485,11 +506,24 @@ bool ImageThread::sendIncrImageThread(void)
 
 			if (run)
 			{
-				hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter) + ".dat", MODE_RW));
+				hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter) + ".dat", MODE_RW_DEVICE));
+				hdat_vol = image_inf->image_letter;
 
 				if (hdat_img.get() == NULL)
 				{
-					hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter + ":") + ".dat", MODE_RW));
+					hdat_img.reset(Server->openFile("urbackup\\hdat_img_" + conv_filename(image_inf->image_letter + ":") + ".dat", MODE_RW_DEVICE));
+					hdat_vol = image_inf->image_letter + ":";
+				}
+
+				if (hdat_img.get() != NULL)
+				{
+					int r_shadow_id = -1;
+					hdat_img->Read(0, reinterpret_cast<char*>(&r_shadow_id), sizeof(r_shadow_id));
+
+					if (r_shadow_id != image_inf->shadow_id)
+					{
+						hdat_img.reset();
+					}
 				}
 			}
 		}
@@ -514,12 +548,12 @@ bool ImageThread::sendIncrImageThread(void)
 				std::vector<char> buf;
 				buf.resize(4096);
 
-				hdat_img->Seek(0);
+				hdat_img->Seek(sizeof(int));
 				_u32 read;
 				int64 imgpos = 0;
 				do
 				{
-					read = hdat_img->Read(buf.data(), buf.size());
+					read = hdat_img->Read(buf.data(), static_cast<_u32>(buf.size()));
 
 					for (_u32 i = 0; i < read; i += SHA256_DIGEST_SIZE)
 					{
@@ -532,7 +566,30 @@ bool ImageThread::sendIncrImageThread(void)
 							}
 							else
 							{
-								++unchanged_blocks;
+								bool has_hashdata = false;
+								char hashdata_buf[c_hashsize];
+								int64 hnum = imgpos / c_vhdblocksize;
+								if (hashdatafile->Size() >= (hnum + 1)*c_hashsize)
+								{
+									if (hashdatafile->Read(hnum*c_hashsize, hashdata_buf, c_hashsize) != c_hashsize)
+									{
+										Server->Log("Reading hashdata failed!", LL_ERROR);
+									}
+									else
+									{
+										has_hashdata = true;
+									}
+								}
+
+								if (!has_hashdata
+									|| memcmp(hashdata_buf, &buf[i], c_hashsize) == 0)
+								{
+									++unchanged_blocks;
+								}
+								else
+								{
+									++changed_blocks;
+								}
 							}
 						}
 
@@ -685,9 +742,16 @@ bool ImageThread::sendIncrImageThread(void)
 					bool has_hash = false;
 					if (hdat_img.get() != NULL)
 					{
-						if (hdat_img->Read((i / vhdblocks)*c_hashsize, reinterpret_cast<char*>(digest), c_hashsize) == c_hashsize)
+						if (IndexThread::getShadowId(hdat_vol) == image_inf->shadow_id)
 						{
-							has_hash = !buf_is_zero(digest, c_hashsize);
+							if (hdat_img->Read(sizeof(int) + (i / vhdblocks)*c_hashsize, reinterpret_cast<char*>(digest), c_hashsize) == c_hashsize)
+							{
+								has_hash = !buf_is_zero(digest, c_hashsize);
+							}
+						}
+						else
+						{
+							hdat_img.reset();
 						}
 					}
 
@@ -745,7 +809,7 @@ bool ImageThread::sendIncrImageThread(void)
 
 						if (hdat_img.get() != NULL)
 						{
-							hdat_img->Write((i / vhdblocks)*c_hashsize, reinterpret_cast<char*>(digest), c_hashsize);
+							hdat_img->Write(sizeof(int) + (i / vhdblocks)*c_hashsize, reinterpret_cast<char*>(digest), c_hashsize);
 						}
 					}
 
@@ -879,6 +943,7 @@ bool ImageThread::sendIncrImageThread(void)
 	if (success && !image_inf->no_shadowcopy)
 	{
 		ClientConnector::updateLastBackup();
+		IndexThread::execute_postbackup_hook("postimagebackup");
 	}
 
 #ifdef VSS_XP //persistence

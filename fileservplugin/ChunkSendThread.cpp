@@ -75,6 +75,7 @@ void ChunkSendThread::operator()(void)
 		{
 			if (pipe_file_user.get()==NULL && file != NULL)
 			{
+				Server->Log("Closing file (free) " + file->getFilename(), LL_DEBUG);
 				Server->destroy(file);
 				assert(!s_filename.empty());
 				FileServ::decrShareActive(s_filename);
@@ -98,11 +99,13 @@ void ChunkSendThread::operator()(void)
 		{
 			if(pipe_file_user.get() == NULL && file!=NULL)
 			{
+				Server->Log("Closing file " + file->getFilename(), LL_DEBUG);
 				Server->destroy(file);
 				assert(!s_filename.empty());
 				FileServ::decrShareActive(s_filename);
 			}
 			file=chunk.update_file;
+			Server->Log("Retaining file " + file->getFilename(), LL_DEBUG);
 			s_filename = chunk.s_filename;
 			curr_hash_size=chunk.hashsize;
 			curr_file_size=chunk.startpos;
@@ -171,11 +174,19 @@ void ChunkSendThread::operator()(void)
 			{
 				has_error = true;
 			}
+			else if (file->Size() == -1)
+			{
+				if (!parent->FlushInt())
+				{
+					Server->Log("Error flushing output socket", LL_INFO);
+				}
+			}
 		}
 	}
 
 	if(pipe_file_user.get() == NULL && file!=NULL)
 	{
+		Server->Log("Closing file (finish) " + file->getFilename(), LL_DEBUG);
 		Server->destroy(file);
 		assert(!s_filename.empty());
 		FileServ::decrShareActive(s_filename);
