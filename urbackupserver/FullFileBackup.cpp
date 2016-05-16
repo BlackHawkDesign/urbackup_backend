@@ -115,7 +115,7 @@ bool FullFileBackup::doFileBackup()
 	{
 		ServerLogger::Log(logid, clientname+": Doing backup without hashed transfer...", LL_DEBUG);
 	}
-	std::string identity = client_main->getSessionIdentity().empty()?server_identity:client_main->getSessionIdentity();
+	std::string identity = client_main->getIdentity();
 	FileClient fc(false, identity, client_main->getProtocolVersions().filesrv_protocol_version,
 		client_main->isOnInternetConnection(), client_main, use_tmpfiles?NULL:client_main);
 	_u32 rc=client_main->getClientFilesrvConnection(&fc, server_settings.get(), 10000);
@@ -156,6 +156,7 @@ bool FullFileBackup::doFileBackup()
 
 	FileListParser list_parser;
 
+	Server->deleteFile(clientlistName(backupid));
 	IFile *clientlist=Server->openFile(clientlistName(backupid), MODE_RW_CREATE);
 	ScopedDeleteFile clientlist_delete(clientlist);
 
@@ -237,8 +238,14 @@ bool FullFileBackup::doFileBackup()
 	std::vector<size_t> folder_items;
 	folder_items.push_back(0);
 
-	while( (read=tmp_filelist->Read(buffer, 4096))>0 && !r_offline && !c_has_error)
+	bool has_read_error = false;
+	while( (read=tmp_filelist->Read(buffer, 4096, &has_read_error))>0 && !r_offline && !c_has_error)
 	{
+		if (has_read_error)
+		{
+			break;
+		}
+
 		for(size_t i=0;i<read;++i)
 		{
 			std::map<std::string, std::string> extra_params;
@@ -527,6 +534,13 @@ bool FullFileBackup::doFileBackup()
 			break;
 	}
 
+	if (has_read_error)
+	{
+		ServerLogger::Log(logid, "Error reading from file " + tmp_filelist->getFilename() + ". " + os_last_error_str(), LL_ERROR);
+		disk_error = true;
+	}
+
+
 	server_download->queueStop();
 
 	ServerLogger::Log(logid, "Waiting for file transfers...", LL_INFO);
@@ -607,8 +621,14 @@ bool FullFileBackup::doFileBackup()
 	size_t output_offset=0;
 	std::stack<size_t> last_modified_offsets;
 	script_dir=false;
-	while( (read=tmp_filelist->Read(buffer, 4096))>0 )
+	has_read_error = false;
+	while( (read=tmp_filelist->Read(buffer, 4096, &has_read_error))>0 )
 	{
+		if (has_read_error)
+		{
+			break;
+		}
+
 		for(size_t i=0;i<read;++i)
 		{
 			bool b=list_parser.nextEntry(buffer[i], cf, NULL);
@@ -643,11 +663,13 @@ bool FullFileBackup::doFileBackup()
 							&& !metadata_download_thread->hasMetadataId(line+1)
 							&& last_modified_offsets.top()!= std::string::npos)
 						{
-							has_all_metadata=false;
+							if (line < max_line)
+							{
+								has_all_metadata = false;
+								ServerLogger::Log(logid, "Metadata of \"" + cf.name + "\" missing", LL_DEBUG);
+							}
 
-							ServerLogger::Log(logid, "Metadata of \"" + cf.name + "\" missing", LL_DEBUG);
-
-							//go back to the directory entry and change the last modfied time
+							//go back to the directory entry and change the last modified time
 							if(clientlist->Seek(last_modified_offsets.top()))
 							{
 								char ch;
@@ -662,7 +684,7 @@ bool FullFileBackup::doFileBackup()
 								}
 								else
 								{
-									ServerLogger::Log(logid, "Error reading from clientlist", LL_ERROR);	
+									ServerLogger::Log(logid, "Error reading from clientlist "+clientlist->getFilename()+" from offset "+convert(last_modified_offsets.top()), LL_ERROR);	
 								}
 							}
 							else
@@ -713,6 +735,12 @@ bool FullFileBackup::doFileBackup()
 				++line;
 			}
 		}
+	}
+
+	if (has_read_error)
+	{
+		ServerLogger::Log(logid, "Error reading from file " + tmp_filelist->getFilename() + ". " + os_last_error_str(), LL_ERROR);
+		disk_error = true;
 	}
 
 	if(has_all_metadata)

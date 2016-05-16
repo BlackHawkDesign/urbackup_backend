@@ -299,6 +299,7 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 	if(cc==NULL)
 	{
 		ServerLogger::Log(logid, "Connecting to ClientService of \""+clientname+"\" failed - CONNECT error", LL_ERROR);
+		has_timeout_error = true;
 		return false;
 	}
 
@@ -328,7 +329,7 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 
 	chksum_str += "&status_id=" + convert(status_id);
 
-	std::string identity= client_main->getSessionIdentity().empty()?server_identity:client_main->getSessionIdentity();
+	std::string identity = client_main->getIdentity();
 
 	if(pParentvhd.empty())
 	{
@@ -545,11 +546,21 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 						}
 						else
 						{
-							identity = client_main->getSessionIdentity().empty() ? server_identity : client_main->getSessionIdentity();
-							reconnected = true;
-							ServerStatus::setROnline(clientname, true);
-							Server->Log("Reconnected.", LL_DEBUG);
-							break;
+							Server->Log("Connected. Authenticating...", LL_DEBUG);
+							if (!client_main->authenticateIfNeeded(false))
+							{
+								Server->destroy(cc);
+								cc = NULL;
+								Server->wait(60000);
+							}
+							else
+							{
+								identity = client_main->getIdentity();
+								reconnected = true;
+								ServerStatus::setROnline(clientname, true);
+								Server->Log("Reconnected.", LL_DEBUG);
+								break;
+							}
 						}
 					}					
 				}
@@ -635,6 +646,7 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 			}
 			else
 			{
+				has_timeout_error = true;
 				ServerLogger::Log(logid, "Pipe to client unexpectedly closed has_error="+(cc==NULL?"NULL":convert(cc->hasError())), LL_ERROR);
 				goto do_image_cleanup;
 			}
@@ -1389,6 +1401,7 @@ bool ImageBackup::doImage(const std::string &pLetter, const std::string &pParent
 			}
 		}
 	}
+	has_timeout_error = true;
 	ServerLogger::Log(logid, "Timeout while transfering image data", LL_ERROR);
 
 do_image_cleanup:

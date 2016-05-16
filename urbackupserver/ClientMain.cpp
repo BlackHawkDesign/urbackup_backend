@@ -129,6 +129,8 @@ ClientMain::ClientMain(IPipe *pPipe, sockaddr_in pAddr, const std::string &pName
 	settings=NULL;
 	settings_client=NULL;
 
+	last_backup_try = 0;
+
 	last_image_backup_try=0;
 	count_image_backup_try=0;
 
@@ -150,6 +152,8 @@ ClientMain::ClientMain(IPipe *pPipe, sockaddr_in pAddr, const std::string &pName
 	{
 		curr_server_token+=convert(filebackup_group_offset/c_group_size);
 	}
+
+	session_identity_refreshtime = 0;
 }
 
 ClientMain::~ClientMain(void)
@@ -276,7 +280,7 @@ void ClientMain::operator ()(void)
 	}
 	else
 	{
-		if(!authenticateIfNeeded())
+		if(!authenticateIfNeeded(true))
 		{
 			pipe->Write("ok");
 			delete this;
@@ -284,7 +288,7 @@ void ClientMain::operator ()(void)
 		}
 	}
 
-	std::string identity = session_identity.empty()?server_identity:session_identity;
+	std::string identity = getIdentity();
 
 	db=Server->getDatabase(Server->getThreadID(), URBACKUPDB_SERVER);
 	DBScopedFreeMemory free_db_memory(db);
@@ -505,6 +509,10 @@ void ClientMain::operator ()(void)
 								count_image_backup_try = 0;
 							}
 						}
+						else
+						{
+							last_backup_try = Server->getTimeSeconds();
+						}
 
 						delete backup_queue[i].backup;
 						send_logdata = true;
@@ -562,7 +570,7 @@ void ClientMain::operator ()(void)
 				}
 			}
 
-			if(client_updated_time!=0 && Server->getTimeSeconds()-client_updated_time>5*60)
+			if(client_updated_time!=0 && Server->getTimeSeconds()-client_updated_time>6*60)
 			{
 				updateCapabilities();
 				client_updated_time=0;
@@ -604,7 +612,7 @@ void ClientMain::operator ()(void)
 
 			if( !server_settings->getSettings()->no_file_backups && (!internet_no_full_file || do_full_backup_now) &&
 				( (isUpdateFull(filebackup_group_offset + c_group_default) && ServerSettings::isInTimeSpan(server_settings->getBackupWindowFullFile())
-				&& exponentialBackoffFile() ) || do_full_backup_now )
+				&& exponentialBackoffFile() && pauseRetryBackup() ) || do_full_backup_now )
 				&& isBackupsRunningOkay(true) && !do_full_image_now && !do_full_image_now && !do_incr_backup_now
 				&& (!isRunningFileBackup(filebackup_group_offset + c_group_default) || do_full_backup_now) )
 			{
@@ -620,7 +628,7 @@ void ClientMain::operator ()(void)
 			}
 			else if( !server_settings->getSettings()->no_file_backups
 				&& ( (isUpdateIncr(filebackup_group_offset + c_group_default) && ServerSettings::isInTimeSpan(server_settings->getBackupWindowIncrFile())
-				&& exponentialBackoffFile() ) || do_incr_backup_now )
+				&& exponentialBackoffFile() && pauseRetryBackup() ) || do_incr_backup_now )
 				&& isBackupsRunningOkay(true) && !do_full_image_now && !do_full_image_now
 				&& (!isRunningFileBackup(filebackup_group_offset + c_group_default) || do_incr_backup_now) )
 			{
@@ -636,7 +644,7 @@ void ClientMain::operator ()(void)
 			}
 			else if(can_backup_images && !server_settings->getSettings()->no_images && (!internet_no_images || do_full_image_now)
 				&& ( (isUpdateFullImage() && ServerSettings::isInTimeSpan(server_settings->getBackupWindowFullImage())
-				&& exponentialBackoffImage() ) || do_full_image_now)
+				&& exponentialBackoffImage() && pauseRetryBackup() ) || do_full_image_now)
 				&& isBackupsRunningOkay(false) && !do_incr_image_now)
 			{
 
@@ -660,7 +668,7 @@ void ClientMain::operator ()(void)
 			}
 			else if(can_backup_images && !server_settings->getSettings()->no_images && (!internet_no_images || do_incr_image_now)
 				&& ((isUpdateIncrImage() && ServerSettings::isInTimeSpan(server_settings->getBackupWindowIncrImage()) 
-				&& exponentialBackoffImage() ) || do_incr_image_now)
+				&& exponentialBackoffImage() && pauseRetryBackup() ) || do_incr_image_now)
 				&& isBackupsRunningOkay(false) )
 			{
 				std::vector<std::string> vols=server_settings->getBackupVolumes(all_volumes, all_nonusb_volumes);
@@ -766,7 +774,7 @@ void ClientMain::operator ()(void)
 
 			tcpstack.setAddChecksum(internet_connection);
 
-			if(!authenticateIfNeeded())
+			if(!authenticateIfNeeded(true))
 			{
 				skip_checking=true;
 			}
@@ -1081,15 +1089,7 @@ std::string ClientMain::sendClientMessage(const std::string &msg, const std::str
 		return "";
 	}
 
-	std::string identity;
-	if(!session_identity.empty())
-	{
-		identity=session_identity;
-	}
-	else
-	{
-		identity=server_identity;
-	}
+	std::string identity = getIdentity();
 
 	tcpstack.Send(cc, identity+msg);
 
@@ -1196,15 +1196,7 @@ bool ClientMain::sendClientMessage(const std::string &msg, const std::string &re
 		conn->conn.reset();
 	}
 
-	std::string identity;
-	if(!session_identity.empty())
-	{
-		identity=session_identity;
-	}
-	else
-	{
-		identity=server_identity;
-	}
+	std::string identity = getIdentity();
 
 	tcpstack.Send(cc.get(), identity+msg);
 
@@ -1531,7 +1523,8 @@ void ClientMain::sendSettings(void)
 bool ClientMain::getClientSettings(bool& doesnt_exist)
 {
 	doesnt_exist=false;
-	std::string identity = session_identity.empty()?server_identity:session_identity;
+	std::string identity = getIdentity();
+
 	FileClient fc(false, identity, protocol_versions.filesrv_protocol_version, internet_connection, this, use_tmpfiles?NULL:this);
 	_u32 rc=getClientFilesrvConnection(&fc, server_settings);
 	if(rc!=ERR_CONNECTED)
@@ -1808,7 +1801,7 @@ void ClientMain::checkClientVersion(void)
 
 			std::string msg="1CLIENTUPDATE size="+convert(datasize)+"&silent_update="+convert(server_settings->getSettings()->silent_update);
 
-			std::string identity= session_identity.empty()?server_identity:session_identity;
+			std::string identity = getIdentity();
 			tcpstack.Send(cc.get(), identity+msg);
 
 			int timeout=5*60*1000;
@@ -2091,7 +2084,7 @@ bool ClientMain::getClientChunkedFilesrvConnection(std::auto_ptr<FileClientChunk
 		curr_clientname =  (clientmainname);
 	}
 
-	std::string identity = session_identity.empty()?server_identity:session_identity;
+	std::string identity = getIdentity();
 	if(internet_connection)
 	{
 		IPipe *cp=InternetServiceConnector::getConnection(curr_clientname, SERVICE_FILESRV, timeoutms);
@@ -2302,6 +2295,11 @@ bool ClientMain::exponentialBackoffCdp()
 	return exponentialBackoff(count_cdp_backup_try, last_cdp_backup_try, c_sleeptime_failed_filebackup, c_exponential_backoff_div);
 }
 
+bool ClientMain::pauseRetryBackup()
+{
+	return Server->getTimeMS() - last_backup_try >= 5 * 60 * 1000;
+}
+
 bool ClientMain::authenticatePubKey()
 {
 	if(crypto_fak==NULL)
@@ -2386,7 +2384,9 @@ bool ClientMain::authenticatePubKey()
 
 		if(ret)
 		{
+			IScopedLock lock(clientaddr_mutex);
 			session_identity = "#I"+identity+"#";
+			session_identity_refreshtime = Server->getTimeMS();
 		}
 
 		return ret;
@@ -2416,6 +2416,12 @@ void ClientMain::timeoutRestores()
 			++i;
 		}
 	}
+}
+
+std::string ClientMain::getIdentity()
+{
+	IScopedLock lock(clientaddr_mutex);
+	return session_identity.empty() ? server_identity : session_identity;
 }
 
 bool ClientMain::run_script( std::string name, const std::string& params, logid_t logid)
@@ -2756,9 +2762,24 @@ void ClientMain::stopBackupBarrier()
 	running_backups_allowed=true;
 }
 
-bool ClientMain::authenticateIfNeeded()
+bool ClientMain::authenticateIfNeeded(bool retry_exit)
 {
-	session_identity.clear();
+	if (!needs_authentification)
+	{
+		return true;
+	}
+
+	{
+		IScopedLock lock(clientaddr_mutex);
+
+		if (session_identity_refreshtime!=0
+			&& Server->getTimeMS() - session_identity_refreshtime<30 * 60 * 1000)
+		{
+			return true;
+		}
+
+		session_identity.clear();
+	}
 
 	bool c = false;
 	do
@@ -2766,9 +2787,15 @@ bool ClientMain::authenticateIfNeeded()
 		c=false;
 
 		bool b = authenticatePubKey();
-		if(!b && needs_authentification)
+		if(!b)
 		{
 			ServerStatus::setStatusError(clientname, se_authentication_error);
+
+			if (!retry_exit)
+			{
+				Server->Log("Authentification failed for client \"" + clientname + "\"", LL_INFO);
+				return false;
+			}
 
 			Server->wait(5*60*1000); //5min
 

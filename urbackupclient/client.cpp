@@ -71,6 +71,7 @@ std::map<std::string, int> IndexThread::cbt_shadow_ids;
 const char IndexThread::IndexThreadAction_StartFullFileBackup=0;
 const char IndexThread::IndexThreadAction_StartIncrFileBackup=1;
 const char IndexThread::IndexThreadAction_CreateShadowcopy = 2;
+const char IndexThread::IndexThreadAction_ReferenceShadowcopy = 11;
 const char IndexThread::IndexThreadAction_ReleaseShadowcopy = 3;
 const char IndexThread::IndexThreadAction_GetLog=9;
 const char IndexThread::IndexThreadAction_PingShadowCopy=10;
@@ -582,7 +583,8 @@ void IndexThread::operator()(void)
 				}
 			}
 		}
-		else if(action==IndexThreadAction_CreateShadowcopy)
+		else if(action==IndexThreadAction_CreateShadowcopy
+			 || action==IndexThreadAction_ReferenceShadowcopy )
 		{
 			std::string scdir;
 			data.getStr(&scdir);
@@ -610,6 +612,8 @@ void IndexThread::operator()(void)
 				}
 			}
 
+			bool reference_sc = action == IndexThreadAction_ReferenceShadowcopy;
+
 			SCDirs *scd = getSCDir(scdir, index_clientsubname);
 			
 			if(scd->running==true && Server->getTimeSeconds()-scd->starttime<shadowcopy_timeout/1000)
@@ -618,7 +622,7 @@ void IndexThread::operator()(void)
 				{
 					scd->ref->dontincrement=true;
 				}
-				bool onlyref = false;
+				bool onlyref = reference_sc;
 				if(start_shadowcopy(scd, &onlyref, image_backup!=0?true:false, std::vector<SCRef*>(), image_backup!=0?true:false))
 				{
 					if (scd->ref!=NULL
@@ -678,14 +682,14 @@ void IndexThread::operator()(void)
 				scd->orig_target=scd->target;
 
 				Server->Log("Creating shadowcopy of \""+scd->dir+"\"...", LL_DEBUG);
-				bool onlyref = false;
+				bool onlyref = reference_sc;
 				bool b= start_shadowcopy(scd, &onlyref, image_backup!=0?true:false, std::vector<SCRef*>(), image_backup==0?false:true);
 				Server->Log("done.", LL_DEBUG);
 				if(!b || scd->ref==NULL)
 				{
 					if(scd->fileserv)
 					{
-						shareDir(starttoken, scd->dir, scd->target);
+						shareDir(std::string(), scd->dir, scd->target);
 					}
 
 					if (!disableCbt(scd->orig_target))
@@ -1061,7 +1065,7 @@ void IndexThread::indexDirs(bool full_backup)
 			bool shadowcopy_optional = (backup_dirs[i].flags & EBackupDirFlag_Optional)
 				|| (backup_dirs[i].symlinked && (backup_dirs[i].flags & EBackupDirFlag_SymlinksOptional) );
 
-			bool onlyref=true;
+			bool onlyref=false;
 			bool stale_shadowcopy=false;
 			bool shadowcopy_ok=false;
 			bool shadowcopy_not_configured = false;
@@ -1074,6 +1078,7 @@ void IndexThread::indexDirs(bool full_backup)
 			}
 			else if(shadowcopy_optional)
 			{
+				onlyref = true;
 				std::string err_msg;
 				int64 errcode = os_last_error(err_msg);
 
@@ -1929,7 +1934,9 @@ std::vector<SFileAndHash> IndexThread::getFilesProxy(const std::string &orig_pat
 		std::string tpath = os_file_prefix(path);
 
 		bool has_error;
-		fs_files = convertToFileAndHash(orig_path, getFilesWin(tpath, &has_error, true, true, (index_flags & EBackupDirFlag_OneFilesystem) > 0), fn_filter);
+		std::vector<SFile> os_files = getFilesWin(tpath, &has_error, true, true, (index_flags & EBackupDirFlag_OneFilesystem) > 0);
+		filterEncryptedFiles(path, orig_path, os_files);
+		fs_files = convertToFileAndHash(orig_path, os_files, fn_filter);
 
 		if (has_error)
 		{
@@ -2056,7 +2063,9 @@ std::vector<SFileAndHash> IndexThread::getFilesProxy(const std::string &orig_pat
 			std::string tpath=os_file_prefix(path);
 
 			bool has_error;
-			fs_files=convertToFileAndHash(orig_path, getFilesWin(tpath, &has_error, true, true, (index_flags & EBackupDirFlag_OneFilesystem)>0), fn_filter);
+			std::vector<SFile> os_files = getFilesWin(tpath, &has_error, true, true, (index_flags & EBackupDirFlag_OneFilesystem) > 0);
+			filterEncryptedFiles(path, orig_path, os_files);
+			fs_files=convertToFileAndHash(orig_path, os_files, fn_filter);
 			if(has_error)
 			{
 				if(os_directory_exists(index_root_path))
@@ -2288,6 +2297,19 @@ bool IndexThread::find_existing_shadowcopy(SCDirs *dir, bool *onlyref, bool allo
 bool IndexThread::start_shadowcopy(SCDirs *dir, bool *onlyref, bool allow_restart,
 	std::vector<SCRef*> no_restart_refs, bool for_imagebackup, bool *stale_shadowcopy, bool* not_configured)
 {
+	bool c_onlyref = false;
+	if (onlyref != NULL)
+	{
+		if (*onlyref)
+		{
+			c_onlyref = true;
+		}
+		else
+		{
+			*onlyref = true;
+		}
+	}
+
 	cleanup_saved_shadowcopies(true);
 
 #ifdef _WIN32
@@ -2321,6 +2343,11 @@ bool IndexThread::start_shadowcopy(SCDirs *dir, bool *onlyref, bool allow_restar
 		|| find_existing_shadowcopy(dir, onlyref, allow_restart, wpath, no_restart_refs, for_imagebackup, stale_shadowcopy, true) )
 	{
 		return true;
+	}
+
+	if (c_onlyref)
+	{
+		return false;
 	}
 
 	dir->ref=new SCRef;
@@ -5228,6 +5255,69 @@ void IndexThread::removeUnconfirmedSymlinkDirs(size_t off)
 			}
 		}
 		++i;
+	}
+}
+
+void IndexThread::filterEncryptedFiles(const std::string & dir, const std::string& orig_dir, std::vector<SFile>& files)
+{
+	bool has_encrypted = false;
+	for (size_t i = 0; i < files.size(); ++i)
+	{
+		if (files[i].isencrypted)
+		{
+			has_encrypted = true;
+		}
+	}
+
+	if (has_encrypted)
+	{
+		std::vector<SFile> new_files;
+
+		for (size_t i = 0; i < files.size(); ++i)
+		{
+			if (files[i].isencrypted
+				&& files[i].isdir)
+			{
+				bool has_error = false;
+				getFiles(os_file_prefix(dir + os_file_sep() + files[i].name), &has_error);
+
+				if (has_error)
+				{
+					VSSLog("Not backing up encrypted directory \"" + orig_dir + os_file_sep() + files[i].name + "\" (Cannot read directory contents: " + os_last_error_str() + "). See https://www.urbackup.org/faq.html#windows_efs", LL_WARNING);
+				}
+				else
+				{
+					new_files.push_back(files[i]);
+				}
+			}
+			else if (files[i].isencrypted
+				&& !files[i].isdir)
+			{
+#ifdef _WIN32
+				HANDLE hFile = CreateFileW(Server->ConvertToWchar(os_file_prefix(dir + os_file_sep() + files[i].name)).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+					OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+
+				if (hFile == INVALID_HANDLE_VALUE)
+				{
+					VSSLog("Not backing up encrypted file \"" + orig_dir + os_file_sep() + files[i].name + "\" (Cannot read file contents: " + os_last_error_str() + "). See https://www.urbackup.org/faq.html#windows_efs", LL_WARNING);
+				}
+				else
+				{
+					CloseHandle(hFile);
+
+					new_files.push_back(files[i]);
+				}
+#else
+				new_files.push_back(files[i]);
+#endif
+			}
+			else
+			{
+				new_files.push_back(files[i]);
+			}
+		}
+
+		files = new_files;
 	}
 }
 

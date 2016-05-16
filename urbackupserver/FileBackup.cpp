@@ -124,15 +124,7 @@ bool FileBackup::request_filelist_construct(bool full, bool resume, int group,
 	if(client_main->getProtocolVersions().file_protocol_version>=2) pver="2";
 	if(client_main->getProtocolVersions().file_protocol_version_v2>=1) pver="3";
 
-	std::string identity;
-	if(!client_main->getSessionIdentity().empty())
-	{
-		identity=client_main->getSessionIdentity();
-	}
-	else
-	{
-		identity=server_identity;
-	}
+	std::string identity = client_main->getIdentity();
 
 	std::string start_backup_cmd=identity+pver;
 
@@ -341,13 +333,14 @@ bool FileBackup::getTokenFile(FileClient &fc, bool hashed_transfer )
 		Server->createFileSettingsReader(os_file_prefix(backuppath_hashes+os_file_sep()+".urbackup_tokens.properties")));
 
 	std::string access_key;
+	std::string client_access_key = server_settings->getSettings()->client_access_key;
 	if(urbackup_tokens->getValue("access_key", &access_key) &&
 		!access_key.empty() &&
-		access_key != server_settings->getSettings()->client_access_key )
+		access_key != client_access_key )
 	{
 		backup_dao->updateOrInsertSetting(clientid, "client_access_key", access_key);
 
-		if(!server_settings->getSettings()->client_access_key.empty())
+		if(!client_access_key.empty())
 		{
 			backup_dao->deleteUsedAccessTokens(clientid);
 		}
@@ -938,7 +931,7 @@ bool FileBackup::verify_file_backup(IFile *fileentries)
 
 	std::ostringstream log;
 
-	log << "Verification of file backup with id " << backupid << ". Path=" << (backuppath) << std::endl;
+	log << "Verification of file backup with id " << backupid << ". Path=" << (backuppath) << " Tree-hashing=" << convert(BackupServer::useTreeHashing()) << std::endl;
 
 	unsigned int read;
 	char buffer[4096];
@@ -951,8 +944,14 @@ bool FileBackup::verify_file_backup(IFile *fileentries)
 	std::stack<std::set<std::string> > folder_files;
 	folder_files.push(std::set<std::string>());
 
-	while( (read=fileentries->Read(buffer, 4096))>0 )
+	bool has_read_error = false;
+	while( (read=fileentries->Read(buffer, 4096, &has_read_error))>0 )
 	{
+		if (has_read_error)
+		{
+			ServerLogger::Log(logid, "Error reading from file " + fileentries->getFilename() + ". " + os_last_error_str(), LL_ERROR);
+			return false;
+		}
 		for(size_t i=0;i<read;++i)
 		{
 			std::map<std::string, std::string> extras;
@@ -1471,8 +1470,14 @@ bool FileBackup::createUserView(IFile* file_list_f, const std::vector<int64>& id
 	std::stack<std::set<std::string> > folder_files;
 	folder_files.push(std::set<std::string>());
 	
-	while((bread=file_list_f->Read(buffer, 4096))>0)
+	bool has_read_error = false;
+	while((bread=file_list_f->Read(buffer, 4096, &has_read_error))>0)
 	{
+		if (has_read_error)
+		{
+			ServerLogger::Log(logid, "Error reading from file " + file_list_f->getFilename() + ". " + os_last_error_str(), LL_ERROR);
+			return false;
+		}
 		for(_u32 i=0;i<bread;++i)
 		{
 			std::map<std::string, std::string> extra;
@@ -1739,7 +1744,7 @@ bool FileBackup::startFileMetadataDownloadThread()
 
 	if(client_main->getProtocolVersions().file_meta>0)
 	{
-		std::string identity = client_main->getSessionIdentity().empty()?server_identity:client_main->getSessionIdentity();
+		std::string identity = client_main->getIdentity();
 		std::auto_ptr<FileClient> fc_metadata_stream(new FileClient(false, identity, client_main->getProtocolVersions().filesrv_protocol_version,
 			client_main->isOnInternetConnection(), client_main, use_tmpfiles?NULL:client_main));
 
@@ -1792,7 +1797,7 @@ bool FileBackup::stopFileMetadataDownloadThread(bool stopped)
 
 			do
 			{
-				std::string identity = client_main->getSessionIdentity().empty()?server_identity:client_main->getSessionIdentity();
+				std::string identity = client_main->getIdentity();
 				std::auto_ptr<FileClient> fc_metadata_stream_end(new FileClient(false, identity, client_main->getProtocolVersions().filesrv_protocol_version,
 					client_main->isOnInternetConnection(), client_main, use_tmpfiles?NULL:client_main));
 
@@ -1860,7 +1865,7 @@ void FileBackup::save_debug_data(const std::string& rfn, const std::string& loca
 	ServerLogger::Log(logid, "Local hash: "+local_hash+" remote hash: "+remote_hash, LL_INFO);
 	ServerLogger::Log(logid, "Trying to download "+rfn, LL_INFO);
 
-	std::string identity = client_main->getSessionIdentity().empty()?server_identity:client_main->getSessionIdentity();
+	std::string identity = client_main->getIdentity();
 	FileClient fc(false, identity, client_main->getProtocolVersions().filesrv_protocol_version,
 		client_main->isOnInternetConnection(), client_main, use_tmpfiles?NULL:client_main);
 

@@ -251,6 +251,8 @@ std::vector<SFile> getFilesWin(const std::string &path, bool *has_error,
 			f.isspecialf=true;
 		}
 
+		f.isencrypted = (wfd.dwFileAttributes & FILE_ATTRIBUTE_ENCRYPTED);
+
 		if( (exact_filesize || with_usn ) && !f.issym && !f.isdir)
 		{
 			if(with_usn)
@@ -551,7 +553,7 @@ int64 os_free_space(const std::string &path)
 		cp+='\\';
 
 	ULARGE_INTEGER li;
-	BOOL r=GetDiskFreeSpaceExW(ConvertToWchar(path).c_str(), &li, NULL, NULL);
+	BOOL r=GetDiskFreeSpaceExW(ConvertToWchar(cp).c_str(), &li, NULL, NULL);
 	if(r!=0)
 		return li.QuadPart;
 	else
