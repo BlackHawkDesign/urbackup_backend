@@ -1,43 +1,35 @@
-System.register(['./../models/client', './../models/clientSearchResult'], function(exports_1, context_1) {
+System.register(['./../models/client', './../models/process', './../models/clientSearchResult'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
-    var client_1, clientSearchResult_1;
+    var client_1, process_1, clientSearchResult_1;
     var ClientService;
     return {
         setters:[
             function (client_1_1) {
                 client_1 = client_1_1;
             },
+            function (process_1_1) {
+                process_1 = process_1_1;
+            },
             function (clientSearchResult_1_1) {
                 clientSearchResult_1 = clientSearchResult_1_1;
             }],
         execute: function() {
             ClientService = (function () {
-                /*
-                id: number;
-              name: string;
-              fileOk: boolean;
-              imageOk: boolean;
-              lastFileBackup: Date;
-              lastImageBackup: Date;
-              lastSeen: Date;
-              Online: boolean;
-              OsVersion: string;
-              selected: boolean;
-              Status: number;*/
                 function ClientService() {
-                    var client = new client_1.Client("Pc1");
-                    client.id = 1;
-                    client.fileOk = true;
-                    client.imageOk = true;
-                    client.lastFileBackup = new Date("2016-03-01");
-                    client.lastFileBackup = new Date("2016-03-02");
-                    client.lastSeen = new Date();
-                    client.online = true;
-                    client.osVersion = "Windows 7 64 biit";
-                    client.status = 0;
+                    var client1 = new client_1.Client("Pc1");
+                    client1.id = 1;
+                    client1.fileOk = true;
+                    client1.imageOk = true;
+                    client1.lastFileBackup = new Date("2016-03-01");
+                    client1.lastFileBackup = new Date("2016-03-02");
+                    client1.lastSeen = new Date();
+                    client1.online = true;
+                    client1.osVersion = "Windows 7 64 biit";
+                    client1.processes = [new process_1.Process("0", 20)];
+                    client1.status = 0;
                     var client2 = new client_1.Client("Pc2");
-                    client2.id = 1;
+                    client2.id = 2;
                     client2.fileOk = true;
                     client2.imageOk = true;
                     client2.lastFileBackup = new Date("2016-03-01");
@@ -47,16 +39,33 @@ System.register(['./../models/client', './../models/clientSearchResult'], functi
                     client2.osVersion = "Windows 7 64 biit";
                     client2.status = 0;
                     this.clients = [
-                        client,
+                        client1,
                         client2
                     ];
+                    for (var i = 0; i < 10; i++) {
+                        var client = new client_1.Client("Pc " + i);
+                        client.id = 2;
+                        client.fileOk = true;
+                        client.imageOk = true;
+                        client.lastFileBackup = new Date("2016-03-01");
+                        client.lastFileBackup = new Date("2016-03-02");
+                        client.lastSeen = new Date("2016-04-02");
+                        client.online = false;
+                        client.osVersion = "Windows 7 64 biit";
+                        client.status = 0;
+                        this.clients.push(client);
+                    }
                 }
                 ClientService.prototype.getClients = function (searchRequest) {
                     var clients = [];
                     for (var i in this.clients) {
-                        if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) != -1) {
-                            clients.push(this.clients[i]);
+                        if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
+                            continue;
                         }
+                        if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
+                            continue;
+                        }
+                        clients.push(this.clients[i]);
                     }
                     return new clientSearchResult_1.ClientSearchResult(searchRequest, clients);
                 };

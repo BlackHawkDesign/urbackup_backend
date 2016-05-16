@@ -79,3 +79,7 @@ menu {
 .clickable {
 	cursor: pointer;
 }
+
+.label[hidden] {
+	display: none;
+}

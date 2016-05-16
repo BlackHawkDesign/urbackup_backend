@@ -1,41 +1,36 @@
+import {Process} from "./process";
+
 export class Client {
-  id: number;
-  name: string;
-  fileOk: boolean;
-  imageOk: boolean;
-  lastFileBackup: Date;
-  lastImageBackup: Date;
-  lastSeen: Date;
-  online: boolean;
-  osVersion: string;
-  selected: boolean;
-  status: number;
+	id: number;
+	name: string;
+	fileOk: boolean;
+	imageOk: boolean;
+	lastFileBackup: Date;
+	lastImageBackup: Date;
+	lastSeen: Date;
+	online: boolean;
+	osVersion: string;
+	selected: boolean;
+	status: number;
+	processes : Process[];
   
-  
-  constructor(name : string) {
+	constructor(name : string) {
         this.name = name;
 		this.selected = false;
-    }
+		this.processes = [];
+	}
+
+	isCreatingBackups() {
+		return this.processes.length > 0;
+	}
+
+	getTotalProcessPercentage() {
+		var totalPercentange = 0;
+
+		for (var i in this.processes) {
+			totalPercentange += this.processes[i].percentage;
+		}
+
+		return this.processes.length === 0 ? totalPercentange : totalPercentange / this.processes.length;
+	}
 }
-
-/*
-
-{
-         "client_version_string":"",
-         "delete_pending":"",
-         "file_ok":false,
-         "id":1,
-         "image_ok":false,
-         "ip":"-",
-         "lastbackup":"",
-         "lastbackup_image":"",
-         "lastseen":"2016-03-31 20:35",
-         "name":"test1",
-         "online":false,
-         "os_version_string":"",
-         "processes":[
-
-         ],
-         "status":0
-      },
-	  */

@@ -52,6 +52,7 @@
     <TypeScriptCompile Include="app\components\logtable\logtable.component.ts" />
     <TypeScriptCompile Include="app\components\menu\menu.component.ts" />
     <TypeScriptCompile Include="app\main.ts" />
+    <TypeScriptCompile Include="app\models\process.ts" />
     <TypeScriptCompile Include="app\models\client.ts" />
     <TypeScriptCompile Include="app\models\clientSearchRequest.ts" />
     <TypeScriptCompile Include="app\models\clientSearchResult.ts" />

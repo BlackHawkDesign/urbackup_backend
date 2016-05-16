@@ -40,25 +40,29 @@
 		</thead>
 		<tbody *ngFor="#client of searchResult.clients">
 			<tr>
-				<td><input type="checkbox" [ngModel]="client.selected" class="js-client-selector" (change)="toggleClient($event,client)"/></td>
-				<td class="clickable" (click)="toggleClientDetail($event)">{{client.name}}</td>
+				<td>
+					<input type="checkbox" [ngModel]="client.selected" class="js-client-selector" (change)="toggleClient($event,client)"/>
+				</td>
+				<td class="clickable" (click)="toggleClientDetail($event)">
+					{{client.name}}
+				</td>
 				<td [ngSwitch]="client.online">
-					<span >
-					  <span *ngSwitchWhen="true" class="label label-success" >Online</span>
-					  <span *ngSwitchWhen="false"class="label label-danger">Offline</span>
-					</span>
+					<span *ngSwitchWhen="true" class="label label-success" >Online</span>
+					<span *ngSwitchWhen="false"class="label label-danger">Offline</span>
 				</td>
 				<td>
-					<div class="progress">
-						<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="35" aria-valuemin="0" aria-valuemax="100" style="width: 35%">
-						<span >35%</span>
+					<div *ngIf="client.isCreatingBackups()" class="progress">
+						<div class="progress-bar progress-bar-striped active" role="progressbar" [attr.aria-valuenow]="client.getTotalProcessPercentage()" aria-valuemin="0" aria-valuemax="100" style="width: 35%">
+							<span>{{client.getTotalProcessPercentage()}}%</span>
 						</div>
 					</div>
+					<span *ngIf="!client.isCreatingBackups() && client.imageOk && client.fileOk" class="label label-success" >OK</span>
+					<span *ngIf="!client.isCreatingBackups() && (!client.imageOk || !client.fileOk)" class="label label-danger">Outdated</span>
 				</td>
 				<td>5 seconds ago</td>
 				<td class="text-right">
 					<div class="btn-group">
-						<button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Action <span class="caret"></span></button>
+						<button type="button" class="btn btn-primary droreturn pdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Action <span class="caret"></span></button>
 						<ul class="dropdown-menu pull-right">
 							<li><a href="#">Full image backup</a></li>
 							<li><a href="#">Incremental image backup</a></li>
