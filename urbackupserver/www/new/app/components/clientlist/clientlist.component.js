@@ -26,6 +26,7 @@ System.register(['angular2/core', './../../models/clientSearchRequest', './../..
         execute: function() {
             ClientListComponent = (function () {
                 function ClientListComponent(clientService) {
+                    this.onlineValues = [{ value: null, text: 'Select' }, { value: true, text: 'Online' }, { value: false, text: 'Offline' }];
                     this.clientService = clientService;
                     this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
                     this.search();

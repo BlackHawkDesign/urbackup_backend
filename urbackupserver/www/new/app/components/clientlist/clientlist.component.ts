@@ -12,7 +12,8 @@ import {ClientService} from './../../services/client.service';
 export class ClientListComponent {  
 	clientService : ClientService;
 	searchRequest : ClientSearchRequest;
-	searchResult : ClientSearchResult;
+	searchResult: ClientSearchResult;
+	onlineValues = [{ value: null, text: 'Select'},{ value: true, text : 'Online' }, { value: false, text : 'Offline' }];
 	
 	constructor(clientService: ClientService) {
 		this.clientService = clientService;

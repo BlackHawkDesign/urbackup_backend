@@ -62,9 +62,10 @@ System.register(['./../models/client', './../models/process', './../models/clien
                         if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
                             continue;
                         }
-                        if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
+                        /*
+                        if (searchRequest.online != null && this.clients[i].online !== searchRequest.online) {
                             continue;
-                        }
+                        }*/
                         clients.push(this.clients[i]);
                     }
                     return new clientSearchResult_1.ClientSearchResult(searchRequest, clients);

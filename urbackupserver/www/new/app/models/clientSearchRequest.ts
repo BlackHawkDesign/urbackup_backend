@@ -1,11 +1,11 @@
 export class ClientSearchRequest {
-  name: string;
-  online: string;
-  status: string;
-  page: number;
-  pageSize: number;
+	name: string;
+	online: string;
+	status: string;
+	page: number;
+	pageSize: number;
   
-  constructor() {
+	constructor() {
 		this.name = "";
 		this.online = "";
 		this.status = "";

@@ -59,11 +59,12 @@ export class ClientService {
 				continue;
 			}
 
-			if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
+			/*
+			if (searchRequest.online != null && this.clients[i].online !== searchRequest.online) {
 				continue;
-			}
+			}*/
 
-
+		
 			clients.push(this.clients[i]);
 		}
 		
