@@ -38,7 +38,7 @@
 				</th>
 			</tr>
 		</thead>
-		<tbody *ngFor="#client of searchResult.clients">
+		<tbody *ngFor="let client of searchResult.clients">
 			<tr>
 				<td>
 					<input type="checkbox" [ngModel]="client.selected" class="js-client-selector" (change)="toggleClient($event,client)"/>
