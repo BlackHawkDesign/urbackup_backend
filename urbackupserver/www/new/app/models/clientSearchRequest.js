@@ -8,7 +8,7 @@ System.register([], function(exports_1, context_1) {
             ClientSearchRequest = (function () {
                 function ClientSearchRequest() {
                     this.name = "";
-                    this.online = "";
+                    this.online = null;
                     this.status = "";
                     this.page = 1;
                     this.pageSize = 50;

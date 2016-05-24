@@ -1,4 +1,4 @@
-import {Component} from 'angular2/core';
+import {Component} from '@angular/core';
 import {ClientSearchRequest} from './../../models/clientSearchRequest';
 import {ClientSearchResult} from './../../models/clientSearchResult';
 import {ClientService} from './../../services/client.service';

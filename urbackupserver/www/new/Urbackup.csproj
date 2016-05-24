@@ -47,6 +47,7 @@
     <Content Include="styles.css" />
   </ItemGroup>
   <ItemGroup>
+    <TypeScriptCompile Include="app\binders\numberBinder.directive.ts" />
     <TypeScriptCompile Include="app\components\app\app.component.ts" />
     <TypeScriptCompile Include="app\components\clientlist\clientlist.component.ts" />
     <TypeScriptCompile Include="app\components\logtable\logtable.component.ts" />

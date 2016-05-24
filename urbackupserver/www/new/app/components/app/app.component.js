@@ -1,4 +1,4 @@
-System.register(['angular2/core', 'angular2/router', './../menu/menu.component', './../clientlist/clientlist.component', './../logtable/logtable.component'], function(exports_1, context_1) {
+System.register(['@angular/core', '@angular/router', './../menu/menu.component', './../clientlist/clientlist.component', './../logtable/logtable.component'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -10,7 +10,7 @@ System.register(['angular2/core', 'angular2/router', './../menu/menu.component',
     var __metadata = (this && this.__metadata) || function (k, v) {
         if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
     };
-    var core_1, router_1, router_2, menu_component_1, clientlist_component_1, logtable_component_1;
+    var core_1, router_1, menu_component_1, clientlist_component_1, logtable_component_1;
     var AppComponent;
     return {
         setters:[
@@ -19,7 +19,6 @@ System.register(['angular2/core', 'angular2/router', './../menu/menu.component',
             },
             function (router_1_1) {
                 router_1 = router_1_1;
-                router_2 = router_1_1;
             },
             function (menu_component_1_1) {
                 menu_component_1 = menu_component_1_1;
@@ -38,12 +37,12 @@ System.register(['angular2/core', 'angular2/router', './../menu/menu.component',
                     core_1.Component({
                         selector: 'urbackup-app',
                         templateUrl: './app/components/app/app.html',
-                        directives: [menu_component_1.MenuComponent, clientlist_component_1.ClientListComponent, router_2.ROUTER_DIRECTIVES]
+                        directives: [menu_component_1.MenuComponent, clientlist_component_1.ClientListComponent, router_1.ROUTER_DIRECTIVES]
                     }),
-                    router_1.RouteConfig([
-                        { path: '/', name: 'Root', component: clientlist_component_1.ClientListComponent },
-                        { path: '/clients', name: 'Clients', component: clientlist_component_1.ClientListComponent },
-                        { path: '/logs', name: 'Logs', component: logtable_component_1.LogTableComponent }
+                    router_1.Routes([
+                        { path: '/', component: clientlist_component_1.ClientListComponent },
+                        { path: '/clients', component: clientlist_component_1.ClientListComponent },
+                        { path: '/logs', component: logtable_component_1.LogTableComponent }
                     ]), 
                     __metadata('design:paramtypes', [])
                 ], AppComponent);
