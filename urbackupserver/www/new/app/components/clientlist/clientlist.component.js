@@ -13,12 +13,14 @@ var clientSearchRequest_1 = require('./../../models/clientSearchRequest');
 var client_service_1 = require('./../../services/client.service');
 var ClientListComponent = (function () {
     function ClientListComponent(clientService) {
-        this.onlineValues = [{ value: null, text: 'Select' }, { value: true, text: 'Online' }, { value: false, text: 'Offline' }];
         this.clientService = clientService;
         this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
         this.search();
     }
     ClientListComponent.prototype.search = function () {
+        if (this.searchRequest.online == "0: null") {
+            this.searchRequest.online = null;
+        }
         this.searchResult = this.clientService.getClients(this.searchRequest);
     };
     ClientListComponent.prototype.toggleClientDetail = function (event) {

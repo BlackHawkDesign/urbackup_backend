@@ -17,8 +17,8 @@
 				<th>&nbsp;</th>
 				<th><input [(ngModel)]="searchRequest.name" type="text" class="form-control small" (keyup)="search()"/></th>
 				<th>
-					<select [(ngModel)]="searchRequest.online" class="form-control" (onchange)="search()">
-						<option [ngValue]="">Select</option>
+					<select [(ngModel)]="searchRequest.online" class="form-control" (change)="search()">
+						<option [ngValue]="null">Select</option>
 						<option [ngValue]="true">Online</option>
 						<option [ngValue]="false">Offline</option>
 					</select>

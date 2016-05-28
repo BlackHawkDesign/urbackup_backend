@@ -59,10 +59,9 @@ export class ClientService {
 				continue;
 			}
 
-			/*
 			if (searchRequest.online != null && this.clients[i].online !== searchRequest.online) {
 				continue;
-			}*/
+			}
 
 		
 			clients.push(this.clients[i]);

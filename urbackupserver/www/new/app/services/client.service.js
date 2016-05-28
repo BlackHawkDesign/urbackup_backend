@@ -49,10 +49,9 @@ var ClientService = (function () {
             if (this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
                 continue;
             }
-            /*
             if (searchRequest.online != null && this.clients[i].online !== searchRequest.online) {
                 continue;
-            }*/
+            }
             clients.push(this.clients[i]);
         }
         return new clientSearchResult_1.ClientSearchResult(searchRequest, clients);

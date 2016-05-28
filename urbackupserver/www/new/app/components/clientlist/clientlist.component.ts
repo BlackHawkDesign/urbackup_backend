@@ -13,7 +13,6 @@ export class ClientListComponent {
 	clientService : ClientService;
 	searchRequest : ClientSearchRequest;
 	searchResult: ClientSearchResult;
-	onlineValues = [{ value: null, text: 'Select'},{ value: true, text : 'Online' }, { value: false, text : 'Offline' }];
 	
 	constructor(clientService: ClientService) {
 		this.clientService = clientService;
@@ -22,6 +21,10 @@ export class ClientListComponent {
 	}
 	
 	search(){
+		if (this.searchRequest.online == "0: null") {
+			this.searchRequest.online = null;
+		}
+
 		this.searchResult = this.clientService.getClients(this.searchRequest);
 	}
 	
