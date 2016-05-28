@@ -68,10 +68,6 @@ menu {
 	width: 100%;
  }
  
- .table-detail{
-	 display:none;
- }
- 
 #client-status-table tbody{
 	border-top: 1px solid #dddddd;
 }
@@ -82,4 +78,9 @@ menu {
 
 .label[hidden] {
 	display: none;
+}
+
+.small {
+	width:75px;
+	display:inline;
 }

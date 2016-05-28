@@ -1,6 +1,7 @@
 import {Component} from '@angular/core';
 import {ClientSearchRequest} from './../../models/clientSearchRequest';
 import {ClientSearchResult} from './../../models/clientSearchResult';
+import {Client} from './../../models/client';
 import {ClientService} from './../../services/client.service';
 
 @Component({
@@ -20,22 +21,20 @@ export class ClientListComponent {
 		this.search();
 	}
 	
-	search(){
-		if (this.searchRequest.online == "0: null") {
-			this.searchRequest.online = null;
+	search(pageNumber: number = null) {
+		if (pageNumber != null) {
+			this.searchRequest.pageNumber = pageNumber;
 		}
 
 		this.searchResult = this.clientService.getClients(this.searchRequest);
 	}
-	
-	toggleClientDetail(event: any){
-		var row = $(event.currentTarget).parent();
-		var detailRow = row.next();
-		detailRow.toggle();
+
+	toggleClientSelection(event: any, client: any) {
+		client.selected = event.currentTarget.checked;
 	}
 	
-	toggleClient(event: any, client: any){
-		client.selected = event.currentTarget.checked;	
+	toggleClientDetail(client: Client) {
+		client.showDetail = !client.showDetail;
 	}
 	
 	toggleAllClients(event: any){

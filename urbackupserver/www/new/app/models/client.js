@@ -3,6 +3,7 @@ var Client = (function () {
     function Client(name) {
         this.name = name;
         this.selected = false;
+        this.showDetail = false;
         this.processes = [];
     }
     Client.prototype.isCreatingBackups = function () {

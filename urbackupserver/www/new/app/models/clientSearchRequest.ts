@@ -1,15 +1,15 @@
 export class ClientSearchRequest {
 	name: string;
-	online: boolean;
+	online: number;
 	status: string;
-	page: number;
+	pageNumber: number;
 	pageSize: number;
   
 	constructor() {
 		this.name = "";
-		this.online = null;
+		this.online = -1;
 		this.status = "";
-		this.page = 1;
-		this.pageSize = 50;
+		this.pageNumber = 1;
+		this.pageSize = 10;
 	}
 }

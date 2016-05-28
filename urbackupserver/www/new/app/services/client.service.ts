@@ -14,7 +14,7 @@ export class ClientService {
 		client1.lastFileBackup = new Date("2016-03-01");
 		client1.lastFileBackup = new Date("2016-03-02");
 		client1.lastSeen = new Date();
-		client1.online = true;
+		client1.online = 1;
 		client1.osVersion = "Windows 7 64 biit";
 		client1.processes = [new Process("0",20)];
 		client1.status = 0;
@@ -26,7 +26,7 @@ export class ClientService {
 		client2.lastFileBackup = new Date("2016-03-01");
 		client2.lastFileBackup = new Date("2016-03-02");
 		client2.lastSeen = new Date();
-		client2.online = false;
+		client2.online = 0;
 		client2.osVersion = "Windows 7 64 biit";
 		client2.status = 0;
 
@@ -35,7 +35,7 @@ export class ClientService {
 			client2
 		];
 
-		for (var i = 0; i < 10; i++) {
+		for (var i = 0; i < 100; i++) {
 			var client = new Client("Pc " + i);
 			client.id = 2;
 			client.fileOk = true;
@@ -43,7 +43,7 @@ export class ClientService {
 			client.lastFileBackup = new Date("2016-03-01");
 			client.lastFileBackup = new Date("2016-03-02");
 			client.lastSeen = new Date("2016-04-02");
-			client.online = false;
+			client.online = 0;
 			client.osVersion = "Windows 7 64 biit";
 			client.status = 0;
 
@@ -53,20 +53,28 @@ export class ClientService {
 	
 	getClients(searchRequest: ClientSearchRequest) { 
 		var clients = [];
-		
-		for (var i in this.clients){
-			if(this.clients[i].name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
+
+		for (var i in this.clients) {
+			var client = this.clients[i];
+
+			if (clients.length >= end) {
+				break;
+			}
+
+			if (client.name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
 				continue;
 			}
 
-			if (searchRequest.online != null && this.clients[i].online !== searchRequest.online) {
+			if (searchRequest.online !== -1 && client.online !== searchRequest.online) {
 				continue;
 			}
 
-		
 			clients.push(this.clients[i]);
 		}
-		
-		return new ClientSearchResult(searchRequest, clients); 
+
+		var start = (searchRequest.pageNumber - 1) * searchRequest.pageSize;
+		var end = searchRequest.pageNumber * searchRequest.pageSize;
+
+		return new ClientSearchResult(searchRequest, clients.slice(start, end), clients.length); 
 	}
 }

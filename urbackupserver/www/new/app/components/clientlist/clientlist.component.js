@@ -17,19 +17,18 @@ var ClientListComponent = (function () {
         this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
         this.search();
     }
-    ClientListComponent.prototype.search = function () {
-        if (this.searchRequest.online == "0: null") {
-            this.searchRequest.online = null;
+    ClientListComponent.prototype.search = function (pageNumber) {
+        if (pageNumber === void 0) { pageNumber = null; }
+        if (pageNumber != null) {
+            this.searchRequest.pageNumber = pageNumber;
         }
         this.searchResult = this.clientService.getClients(this.searchRequest);
     };
-    ClientListComponent.prototype.toggleClientDetail = function (event) {
-        var row = $(event.currentTarget).parent();
-        var detailRow = row.next();
-        detailRow.toggle();
-    };
-    ClientListComponent.prototype.toggleClient = function (event, client) {
+    ClientListComponent.prototype.toggleClientSelection = function (event, client) {
         client.selected = event.currentTarget.checked;
+    };
+    ClientListComponent.prototype.toggleClientDetail = function (client) {
+        client.showDetail = !client.showDetail;
     };
     ClientListComponent.prototype.toggleAllClients = function (event) {
         for (var i in this.searchResult.clients) {

@@ -3,12 +3,13 @@ import {Process} from "./process";
 export class Client {
 	id: number;
 	name: string;
+	showDetail: boolean;
 	fileOk: boolean;
 	imageOk: boolean;
 	lastFileBackup: Date;
 	lastImageBackup: Date;
 	lastSeen: Date;
-	online: boolean;
+	online: number;
 	osVersion: string;
 	selected: boolean;
 	status: number;
@@ -17,6 +18,7 @@ export class Client {
 	constructor(name : string) {
         this.name = name;
 		this.selected = false;
+		this.showDetail = false;
 		this.processes = [];
 	}
 
