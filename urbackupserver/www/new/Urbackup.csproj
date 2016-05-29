@@ -57,6 +57,7 @@
     <TypeScriptCompile Include="app\models\client.ts" />
     <TypeScriptCompile Include="app\models\clientSearchRequest.ts" />
     <TypeScriptCompile Include="app\models\clientSearchResult.ts" />
+    <TypeScriptCompile Include="app\pipes\RelativeTimePipe.ts" />
     <TypeScriptCompile Include="app\services\client.service.ts" />
     <TypeScriptCompile Include="typings\jquery.d.ts" />
   </ItemGroup>

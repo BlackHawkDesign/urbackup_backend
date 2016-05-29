@@ -3,11 +3,13 @@ import {ClientSearchRequest} from './../../models/clientSearchRequest';
 import {ClientSearchResult} from './../../models/clientSearchResult';
 import {Client} from './../../models/client';
 import {ClientService} from './../../services/client.service';
+import {RelativeTimePipe} from './../../pipes/relativeTimePipe';
 
 @Component({
     selector: 'clientlist',
 	templateUrl: './app/components/clientlist/clientlist.html',
-	providers:[ClientService]
+	providers: [ClientService],
+	pipes: [RelativeTimePipe],
 })
 
 export class ClientListComponent {  
@@ -37,12 +39,12 @@ export class ClientListComponent {
 		client.showDetail = !client.showDetail;
 	}
 	
-	toggleAllClients(event: any){
+	toggleAllClientsSelection(event: any){
 		for (var i in this.searchResult.clients){
 			this.searchResult.clients[i].selected = event.currentTarget.checked;	
 		}
 	}
-	
+		
 	getSelectedClients(){		
 		var clients = [];
 		

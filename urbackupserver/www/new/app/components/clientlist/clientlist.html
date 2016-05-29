@@ -3,7 +3,7 @@
 	<table class="table">
 		<thead>
 			<tr>
-				<th><input type="checkbox" (change)="toggleAllClients($event);"/></th>
+				<th><input type="checkbox" (change)="toggleAllClientsSelection($event);"/></th>
 				<th>
 					Computer name
 					<span class="glyphicon glyphicon-triangle-bottom"></span>
@@ -26,10 +26,9 @@
 				<th>
 					<select class="form-control">
 						<option>Select</option>
+						<option>In progress</option>
 						<option>OK</option>
 						<option>Outdated</option>
-						<option>Image outdated</option>
-						<option>File outdated</option>
 					</select>
 				</th>
 				<th>&nbsp;</th>
@@ -59,7 +58,7 @@
 					<span *ngIf="!client.isCreatingBackups() && client.imageOk && client.fileOk" class="label label-success" >OK</span>
 					<span *ngIf="!client.isCreatingBackups() && (!client.imageOk || !client.fileOk)" class="label label-danger">Outdated</span>
 				</td>
-				<td>5 seconds ago</td>
+				<td>{{client.lastSeen | relativeTime}}</td>
 				<td class="text-right">
 					<div class="btn-group">
 						<button type="button" class="btn btn-primary droreturn pdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Action <span class="caret"></span></button>

@@ -1,4 +1,3 @@
-"use strict";
 var platform_browser_dynamic_1 = require('@angular/platform-browser-dynamic');
 var app_component_1 = require('./components/app/app.component');
 var router_1 = require('@angular/router');

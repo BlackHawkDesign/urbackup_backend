@@ -1,9 +1,8 @@
-"use strict";
 var client_1 = require('./../models/client');
 var process_1 = require('./../models/process');
 var clientSearchResult_1 = require('./../models/clientSearchResult');
-var ClientService = (function () {
-    function ClientService() {
+class ClientService {
+    constructor() {
         var client1 = new client_1.Client("Pc1");
         client1.id = 1;
         client1.fileOk = true;
@@ -43,7 +42,7 @@ var ClientService = (function () {
             this.clients.push(client);
         }
     }
-    ClientService.prototype.getClients = function (searchRequest) {
+    getClients(searchRequest) {
         var clients = [];
         for (var i in this.clients) {
             var client = this.clients[i];
@@ -61,8 +60,7 @@ var ClientService = (function () {
         var start = (searchRequest.pageNumber - 1) * searchRequest.pageSize;
         var end = searchRequest.pageNumber * searchRequest.pageSize;
         return new clientSearchResult_1.ClientSearchResult(searchRequest, clients.slice(start, end), clients.length);
-    };
-    return ClientService;
-}());
+    }
+}
 exports.ClientService = ClientService;
 //# sourceMappingURL=client.service.js.map
