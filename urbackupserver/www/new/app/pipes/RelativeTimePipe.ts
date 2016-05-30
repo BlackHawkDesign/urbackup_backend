@@ -1,6 +1,5 @@
-﻿///<reference path='../../typings/modules/moment/index.d.ts'/>
-import { Pipe, PipeTransform } from '@angular/core';
-import {Moment} from 'moment';
+﻿import { Pipe, PipeTransform } from '@angular/core';
+import * as moment from 'moment/moment';
 
 @Pipe({
 	name: 'relativeTime'
@@ -8,8 +7,6 @@ import {Moment} from 'moment';
 
 export class RelativeTimePipe implements PipeTransform {
 	transform(value: Date, exponent: string): string {
-		//return moment(value).fromNow();
-
-		return "blabla";
+		return moment(value).fromNow();
 	}
 }

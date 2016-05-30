@@ -1,1 +1,1 @@
-{"version":3,"file":"process.js","sourceRoot":"","sources":["process.ts"],"names":["Process","Process.constructor"],"mappings":"AAAA;IAKCA,YAAYA,MAAcA,EAAEA,UAAkBA;QACvCC,IAAIA,CAACA,MAAMA,GAAGA,MAAMA,CAACA;QAC3BA,IAAIA,CAACA,UAAUA,GAAGA,UAAUA,CAACA;IAC3BA,CAACA;AACLD,CAACA;AATY,eAAO,UASnB,CAAA"}
+{"version":3,"file":"process.js","sourceRoot":"","sources":["process.ts"],"names":[],"mappings":";AAAA;IAKC,iBAAY,MAAc,EAAE,UAAkB;QACvC,IAAI,CAAC,MAAM,GAAG,MAAM,CAAC;QAC3B,IAAI,CAAC,UAAU,GAAG,UAAU,CAAC;IAC3B,CAAC;IACL,cAAC;AAAD,CAAC,AATD,IASC;AATY,eAAO,UASnB,CAAA"}
