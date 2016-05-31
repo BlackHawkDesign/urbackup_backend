@@ -17,6 +17,6 @@ export class MenuComponent {
 	isActive(path : any, iets : any) {
 
 
-		return true;
+		return false;
 	}
 }

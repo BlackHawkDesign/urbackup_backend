@@ -57,10 +57,6 @@ export class ClientService {
 		for (var i in this.clients) {
 			var client = this.clients[i];
 
-			if (clients.length >= end) {
-				break;
-			}
-
 			if (client.name.toUpperCase().search(searchRequest.name.toUpperCase()) === -1) {
 				continue;
 			}

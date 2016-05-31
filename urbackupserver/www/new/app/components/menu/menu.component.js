@@ -15,7 +15,7 @@ var MenuComponent = (function () {
         this.router = router;
     }
     MenuComponent.prototype.isActive = function (path, iets) {
-        return true;
+        return false;
     };
     MenuComponent = __decorate([
         core_1.Component({
