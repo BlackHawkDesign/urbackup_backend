@@ -13,6 +13,7 @@ var router_1 = require('@angular/router');
 var menu_component_1 = require('./../menu/menu.component');
 var clientlist_component_1 = require('./../clientlist/clientlist.component');
 var logtable_component_1 = require('./../logtable/logtable.component');
+var activitylist_component_1 = require("../activitylist/activitylist.component");
 var AppComponent = (function () {
     function AppComponent() {
     }
@@ -25,6 +26,7 @@ var AppComponent = (function () {
         router_1.Routes([
             { path: '/', component: clientlist_component_1.ClientListComponent },
             { path: '/clients', component: clientlist_component_1.ClientListComponent },
+            { path: '/activities', component: activitylist_component_1.ActivityListComponent },
             { path: '/logs', component: logtable_component_1.LogTableComponent }
         ]), 
         __metadata('design:paramtypes', [])

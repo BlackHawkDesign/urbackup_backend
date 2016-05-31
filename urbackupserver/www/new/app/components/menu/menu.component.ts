@@ -1,5 +1,5 @@
 import {Component} from '@angular/core';
-import {ROUTER_DIRECTIVES,ROUTER_PROVIDERS} from '@angular/router';
+import {Router, ROUTER_DIRECTIVES,ROUTER_PROVIDERS} from '@angular/router';
 
 @Component({
     selector: 'menu',
@@ -8,8 +8,15 @@ import {ROUTER_DIRECTIVES,ROUTER_PROVIDERS} from '@angular/router';
 })
 
 export class MenuComponent {  
-	
-	getActiveClass(path : string){
-		return true ? 'active' : '';
+	router: Router;
+
+	constructor(router: Router) {
+		this.router = router;
+	}
+
+	isActive(path : any, iets : any) {
+
+
+		return true;
 	}
 }

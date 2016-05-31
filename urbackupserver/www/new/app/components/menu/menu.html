@@ -11,10 +11,10 @@
 		</div>
 		<div id="navbar" class="navbar-collapse collapse">
 			<ul class="nav navbar-nav">
-				<li ng-class="getActiveClass('/clients')"><a [routerLink]="['Clients']">Clients</a></li>
-				<li ng-class="getActiveClass('/activity')"><a href="#about">Activity</a></li>
-				<li ng-class="getActiveClass('/logs')"><a [routerLink]="['Logs']">Logs</a></li>
-				<li ng-class="getActiveClass('/statistics')"><a href="#contact">Statistics</a></li>
+				<li [ngClass]="{active: isActive(this,'test')}"><a [routerLink]="['/clients']">Clients</a></li>
+				<li [ngClass]="{active: isActive(this)}"><a [routerLink]="['/activities']">Activities</a></li>
+				<li [ngClass]="{active: isActive(this)}"><a [routerLink]="['/logs']">Logs</a></li>
+				<li [ngClass]="{active: isActive(this)}"><a href="#contact">Statistics</a></li>
 				<li class="dropdown">
 					<a href="settings.html" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Settings<span class="caret"></span></a>
 					<ul class="dropdown-menu">

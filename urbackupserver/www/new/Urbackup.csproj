@@ -39,6 +39,7 @@
     <Service Include="{4A0DDDB5-7A95-4FBF-97CC-616D07737A77}" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="app\components\activitylist\activitylist.html" />
     <Content Include="app\components\app\app.html" />
     <Content Include="app\components\clientlist\clientlist.html" />
     <Content Include="app\components\logtable\logtable.html" />
@@ -48,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="app\binders\numberBinder.directive.ts" />
+    <TypeScriptCompile Include="app\components\activitylist\activitylist.component.ts" />
     <TypeScriptCompile Include="app\components\app\app.component.ts" />
     <TypeScriptCompile Include="app\components\clientlist\clientlist.component.ts" />
     <TypeScriptCompile Include="app\components\logtable\logtable.component.ts" />

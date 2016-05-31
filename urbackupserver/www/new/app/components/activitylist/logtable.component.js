@@ -9,23 +9,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var core_1 = require('@angular/core');
-var router_1 = require('@angular/router');
-var MenuComponent = (function () {
-    function MenuComponent(router) {
-        this.router = router;
+var LogTableComponent = (function () {
+    function LogTableComponent() {
     }
-    MenuComponent.prototype.isActive = function (path, iets) {
-        return true;
-    };
-    MenuComponent = __decorate([
+    LogTableComponent = __decorate([
         core_1.Component({
-            selector: 'menu',
-            templateUrl: './app/components/menu/menu.html',
-            directives: [router_1.ROUTER_DIRECTIVES]
+            selector: 'logtable',
+            templateUrl: './app/components/logtable/logtable.html'
         }), 
-        __metadata('design:paramtypes', [router_1.Router])
-    ], MenuComponent);
-    return MenuComponent;
+        __metadata('design:paramtypes', [])
+    ], LogTableComponent);
+    return LogTableComponent;
 }());
-exports.MenuComponent = MenuComponent;
-//# sourceMappingURL=menu.component.js.map
+exports.LogTableComponent = LogTableComponent;
+//# sourceMappingURL=logtable.component.js.map

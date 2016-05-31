@@ -9,23 +9,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var core_1 = require('@angular/core');
-var router_1 = require('@angular/router');
-var MenuComponent = (function () {
-    function MenuComponent(router) {
-        this.router = router;
+var ActivityListComponent = (function () {
+    function ActivityListComponent() {
     }
-    MenuComponent.prototype.isActive = function (path, iets) {
-        return true;
-    };
-    MenuComponent = __decorate([
+    ActivityListComponent = __decorate([
         core_1.Component({
-            selector: 'menu',
-            templateUrl: './app/components/menu/menu.html',
-            directives: [router_1.ROUTER_DIRECTIVES]
+            selector: 'activityList',
+            templateUrl: './app/components/activitylist/activitylist.html'
         }), 
-        __metadata('design:paramtypes', [router_1.Router])
-    ], MenuComponent);
-    return MenuComponent;
+        __metadata('design:paramtypes', [])
+    ], ActivityListComponent);
+    return ActivityListComponent;
 }());
-exports.MenuComponent = MenuComponent;
-//# sourceMappingURL=menu.component.js.map
+exports.ActivityListComponent = ActivityListComponent;
+//# sourceMappingURL=activitylist.component.js.map
