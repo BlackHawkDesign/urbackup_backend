@@ -16,20 +16,28 @@ var ClientListComponent = (function () {
     function ClientListComponent(clientService) {
         this.clientService = clientService;
         this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
-        this.search();
     }
+    ClientListComponent.prototype.ngOnInit = function () {
+        this.search();
+    };
     ClientListComponent.prototype.search = function (pageNumber) {
+        var _this = this;
         if (pageNumber === void 0) { pageNumber = null; }
         if (pageNumber != null) {
             this.searchRequest.pageNumber = pageNumber;
         }
-        this.searchResult = this.clientService.getClients(this.searchRequest);
+        this.searchResult = null;
+        this.clientService.getClients(this.searchRequest).then(function (result) { return _this.searchResult = result; });
     };
-    ClientListComponent.prototype.toggleClientSelection = function (event, client) {
-        client.selected = event.currentTarget.checked;
-    };
-    ClientListComponent.prototype.toggleClientDetail = function (client) {
-        client.showDetail = !client.showDetail;
+    ClientListComponent.prototype.delayedSearch = function () {
+        if (this.pendingSearchRequest != null) {
+            clearTimeout(this.pendingSearchRequest);
+        }
+        var controller = this;
+        this.pendingSearchRequest = setTimeout(function () {
+            controller.search(1);
+            controller.pendingSearchRequest = null;
+        }, 750);
     };
     ClientListComponent.prototype.toggleAllClientsSelection = function (event) {
         for (var i in this.searchResult.clients) {
@@ -38,9 +46,11 @@ var ClientListComponent = (function () {
     };
     ClientListComponent.prototype.getSelectedClients = function () {
         var clients = [];
-        for (var i in this.searchResult.clients) {
-            if (this.searchResult.clients[i].selected) {
-                clients.push(this.searchResult.clients[i]);
+        if (this.searchResult) {
+            for (var i in this.searchResult.clients) {
+                if (this.searchResult.clients[i].selected) {
+                    clients.push(this.searchResult.clients[i]);
+                }
             }
         }
         return clients;

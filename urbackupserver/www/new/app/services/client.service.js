@@ -15,6 +15,8 @@ var ClientService = (function () {
         client1.osVersion = "Windows 7 64 biit";
         client1.processes = [new process_1.Process("0", 20)];
         client1.status = 0;
+        client1.ip = "192.168.1.2";
+        client1.version = "1.5.1";
         var client2 = new client_1.Client("Pc2");
         client2.id = 2;
         client2.fileOk = true;
@@ -40,6 +42,8 @@ var ClientService = (function () {
             client.online = 0;
             client.osVersion = "Windows 7 64 biit";
             client.status = 0;
+            client.ip = "192.168.1." + i;
+            client.version = "1.5.1";
             this.clients.push(client);
         }
     }
@@ -57,7 +61,9 @@ var ClientService = (function () {
         }
         var start = (searchRequest.pageNumber - 1) * searchRequest.pageSize;
         var end = searchRequest.pageNumber * searchRequest.pageSize;
-        return new clientSearchResult_1.ClientSearchResult(searchRequest, clients.slice(start, end), clients.length);
+        return new Promise(function (resolve) {
+            return setTimeout(function () { return resolve(new clientSearchResult_1.ClientSearchResult(searchRequest, clients.slice(start, end), clients.length)); }, 2000);
+        });
     };
     return ClientService;
 }());

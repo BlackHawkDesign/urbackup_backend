@@ -18,6 +18,8 @@ export class ClientService {
 		client1.osVersion = "Windows 7 64 biit";
 		client1.processes = [new Process("0",20)];
 		client1.status = 0;
+		client1.ip = "192.168.1.2";
+		client1.version = "1.5.1";
 		
 		var client2 = new Client("Pc2");
 		client2.id = 2;
@@ -46,7 +48,8 @@ export class ClientService {
 			client.online = 0;
 			client.osVersion = "Windows 7 64 biit";
 			client.status = 0;
-
+			client.ip = "192.168.1." + i;
+			client.version = "1.5.1";
 			this.clients.push(client);
 		}
 	}
@@ -71,6 +74,8 @@ export class ClientService {
 		var start = (searchRequest.pageNumber - 1) * searchRequest.pageSize;
 		var end = searchRequest.pageNumber * searchRequest.pageSize;
 
-		return new ClientSearchResult(searchRequest, clients.slice(start, end), clients.length); 
+		return new Promise<ClientSearchResult>(resolve =>
+			setTimeout(() => resolve(new ClientSearchResult(searchRequest, clients.slice(start, end), clients.length)), 2000)
+		);
 	}
 }

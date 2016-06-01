@@ -10,10 +10,12 @@ export class Client {
 	lastImageBackup: Date;
 	lastSeen: Date;
 	online: number;
+	version: string;
 	osVersion: string;
 	selected: boolean;
 	status: number;
-	processes : Process[];
+	processes: Process[];
+	ip: string;
   
 	constructor(name : string) {
         this.name = name;

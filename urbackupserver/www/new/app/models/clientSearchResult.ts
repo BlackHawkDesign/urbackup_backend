@@ -7,18 +7,18 @@ export class ClientSearchResult {
 	clientCount: number;
 	pages: number[];
   
-	constructor(request: ClientSearchRequest, clients: Client[], clientCount : number) {
-		this.request = request;
-		this.clients = clients;
-		this.clientCount = clientCount;
-		this.generatePages(request, clients);
+	constructor(request?: ClientSearchRequest, clients?: Client[], clientCount?: number) {
+		this.request = request || new ClientSearchRequest();
+		this.clients = clients || [];
+		this.clientCount = clientCount || 0;
+		this.generatePages();
 	}
 
-	generatePages(request: ClientSearchRequest, clients: Client[]) {
+	generatePages() {
 		var pageNumber = 1;
 		this.pages = [];
 
-		while (this.clientCount > ((pageNumber-1) * request.pageSize)) {
+		while (this.clientCount > ((pageNumber-1) * this.request.pageSize)) {
 			this.pages.push(pageNumber);
 			pageNumber++;
 		}
