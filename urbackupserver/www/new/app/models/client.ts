@@ -9,7 +9,7 @@ export class Client {
 	lastFileBackup: Date;
 	lastImageBackup: Date;
 	lastSeen: Date;
-	online: number;
+	online: boolean;
 	version: string;
 	osVersion: string;
 	selected: boolean;

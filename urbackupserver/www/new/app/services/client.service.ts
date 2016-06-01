@@ -64,7 +64,7 @@ export class ClientService {
 				continue;
 			}
 
-			if (searchRequest.online !== -1 && client.online !== searchRequest.online) {
+			if (searchRequest.online !== -1 && client.online !== (searchRequest.online === 1)) {
 				continue;
 			}
 
