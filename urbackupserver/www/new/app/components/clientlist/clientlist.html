@@ -45,74 +45,73 @@
 		</tr>
 		</tbody>
 		<tbody *ngFor="let client of searchResult?.clients">
-					<tr>
-						<td>
-							<input type="checkbox" [ngModel]="client.selected" class="js-client-selector" (change)="client.selected = $event.currentTarget.checked"/>
-						</td>
-						<td class="clickable" (click)="client.showDetail = !client.showDetail">
-							{{client.name}}
-						</td>
-						<td [ngSwitch]="client.online">
-							<span *ngSwitchWhen="1" class="label label-success" >Online</span>
-							<span *ngSwitchWhen="0"class="label label-danger">Offline</span>
-						</td>
-						<td>
-							<div *ngIf="client.isCreatingBackups()" class="progress">
-								<div class="progress-bar progress-bar-striped active" role="progressbar" [attr.aria-valuenow]="client.getTotalProcessPercentage()" aria-valuemin="0" aria-valuemax="100" style="width: 35%">
-									<span>{{client.getTotalProcessPercentage()}}%</span>
-								</div>
-							</div>
-							<span *ngIf="!client.isCreatingBackups() && client.imageOk && client.fileOk" class="label label-success" >OK</span>
-							<span *ngIf="!client.isCreatingBackups() && (!client.imageOk || !client.fileOk)" class="label label-danger">Outdated</span>
-						</td>
-						<td>{{client.lastSeen | relativeTime}}</td>
-						<td class="text-right">
-							<div class="btn-group">
-								<button type="button" class="btn btn-primary droreturn pdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Action <span class="caret"></span></button>
-								<ul class="dropdown-menu pull-right">
-									<li><a href="#">Full image backup</a></li>
-									<li><a href="#">Incremental image backup</a></li>
-									<li><a href="#">Full file backup</a></li>
-									<li><a href="#">Incremental file backup</a></li>
-									<li role="separator" class="divider"></li>
-									<li><a href="#">Download client</a></li>
-								</ul>
-							</div>
-						</td>
-					</tr>
-					<tr *ngIf="client.showDetail" class="table-detail">
-						<td colspan="6">
-							<div class="row">
-								<div class="col-md-4">
-									<strong>Client</strong>
-									<ul>
-										<li><label>IP</label>{{client.ip}}</li>
-										<li><label>Last seen</label>{{client.lastSeen | date:'dd-MM-yyyy HH:mm'}}</li>
-										<li><label>Operating system</label>{{client.osVersion}}</li>
-										<li><label>Client version</label>{{client.version}}</li>
-									</ul>
-								</div>
-								<div class="col-md-4">
-									<strong>Image backup</strong>
-									<ul>
-										<li><label>Backup status</label>OK</li>
-										<li><label>Last backup</label>2015-10-07 11:38</li>
-									</ul>
-								</div>
-								<div class="col-md-4">
-									<strong>File backup</strong>
-									<ul>
-										<li><label>Backup status</label>OK</li>
-										<li><label>Last backup</label>2015-10-07 11:38</li>
-									</ul>
-								</div>
-							</div>
-							<p class="actions">
-								<a href="">Logs</a>
-							</p>
-						</td>
-					</tr>
-			
+			<tr>
+				<td>
+					<input type="checkbox" [ngModel]="client.selected" class="js-client-selector" (change)="client.selected = $event.currentTarget.checked"/>
+				</td>
+				<td class="clickable" (click)="client.showDetail = !client.showDetail">
+					{{client.name}}
+				</td>
+				<td [ngSwitch]="client.online">
+					<span *ngSwitchWhen="true" class="label label-success" >Online</span>
+					<span *ngSwitchWhen="false"class="label label-danger">Offline</span>
+				</td>
+				<td>
+					<div *ngIf="client.status == ClientStatus.InProgress" class="progress">
+						<div class="progress-bar progress-bar-striped active" role="progressbar" [attr.aria-valuenow]="client.getTotalProcessPercentage()" aria-valuemin="0" aria-valuemax="100" style="width: 35%">
+							<span>{{client.getTotalProcessPercentage()}}%</span>
+						</div>
+					</div>
+					<span *ngIf="client.status == ClientStatus.Ok" class="label label-success" >OK</span>
+					<span *ngIf="client.status == ClientStatus.Outdated" class="label label-danger">Outdated</span>
+				</td>
+				<td>{{client.lastSeen | relativeTime}}</td>
+				<td class="text-right">
+					<div class="btn-group">
+						<button type="button" class="btn btn-primary droreturn pdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Action <span class="caret"></span></button>
+						<ul class="dropdown-menu pull-right">
+							<li><a href="#">Full image backup</a></li>
+							<li><a href="#">Incremental image backup</a></li>
+							<li><a href="#">Full file backup</a></li>
+							<li><a href="#">Incremental file backup</a></li>
+							<li role="separator" class="divider"></li>
+							<li><a href="#">Download client</a></li>
+						</ul>
+					</div>
+				</td>
+			</tr>
+			<tr *ngIf="client.showDetail" class="table-detail">
+				<td colspan="6">
+					<div class="row">
+						<div class="col-md-4">
+							<strong>Client</strong>
+							<ul>
+								<li><label>IP</label>{{client.ip}}</li>
+								<li><label>Last seen</label>{{client.lastSeen | date:'dd-MM-yyyy HH:mm'}}</li>
+								<li><label>Operating system</label>{{client.osVersion}}</li>
+								<li><label>Client version</label>{{client.version}}</li>
+							</ul>
+						</div>
+						<div class="col-md-4">
+							<strong>Image backup</strong>
+							<ul>
+								<li><label>Backup status</label>OK</li>
+								<li><label>Last backup</label>2015-10-07 11:38</li>
+							</ul>
+						</div>
+						<div class="col-md-4">
+							<strong>File backup</strong>
+							<ul>
+								<li><label>Backup status</label>OK</li>
+								<li><label>Last backup</label>2015-10-07 11:38</li>
+							</ul>
+						</div>
+					</div>
+					<p class="actions">
+						<a href="">Logs</a>
+					</p>
+				</td>
+			</tr>
 		</tbody>
 		<tfoot>
 			<tr *ngIf="!searchResult">

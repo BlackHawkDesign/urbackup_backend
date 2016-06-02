@@ -13,7 +13,7 @@ export class Client {
 	version: string;
 	osVersion: string;
 	selected: boolean;
-	status: number;
+	status: ClientStatus;
 	processes: Process[];
 	ip: string;
   
@@ -21,6 +21,7 @@ export class Client {
         this.name = name;
 		this.selected = false;
 		this.showDetail = false;
+		this.status = ClientStatus.Ok;
 		this.processes = [];
 	}
 

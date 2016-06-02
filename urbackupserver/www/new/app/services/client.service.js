@@ -11,10 +11,10 @@ var ClientService = (function () {
         client1.lastFileBackup = new Date("2016-03-01");
         client1.lastFileBackup = new Date("2016-03-02");
         client1.lastSeen = new Date();
-        client1.online = 1;
+        client1.online = true;
         client1.osVersion = "Windows 7 64 biit";
         client1.processes = [new process_1.Process("0", 20)];
-        client1.status = 0;
+        client1.status = ClientStatus.InProgress;
         client1.ip = "192.168.1.2";
         client1.version = "1.5.1";
         var client2 = new client_1.Client("Pc2");
@@ -24,7 +24,7 @@ var ClientService = (function () {
         client2.lastFileBackup = new Date("2016-03-01");
         client2.lastFileBackup = new Date("2016-03-02");
         client2.lastSeen = new Date();
-        client2.online = 0;
+        client2.online = true;
         client2.osVersion = "Windows 7 64 biit";
         client2.status = 0;
         this.clients = [
@@ -39,11 +39,12 @@ var ClientService = (function () {
             client.lastFileBackup = new Date("2016-03-01");
             client.lastFileBackup = new Date("2016-03-02");
             client.lastSeen = new Date("2016-04-02");
-            client.online = 0;
+            client.online = false;
             client.osVersion = "Windows 7 64 biit";
             client.status = 0;
             client.ip = "192.168.1." + i;
             client.version = "1.5.1";
+            client.status = ClientStatus.Outdated;
             this.clients.push(client);
         }
     }

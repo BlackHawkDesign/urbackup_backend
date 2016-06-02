@@ -4,6 +4,7 @@ var Client = (function () {
         this.name = name;
         this.selected = false;
         this.showDetail = false;
+        this.status = ClientStatus.Ok;
         this.processes = [];
     }
     Client.prototype.isCreatingBackups = function () {
