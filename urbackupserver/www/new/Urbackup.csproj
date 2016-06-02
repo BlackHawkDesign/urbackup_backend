@@ -73,7 +73,7 @@
     <Content Include="typings.json" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="app\models\ClientStatus.ts" />
+    <TypeScriptCompile Include="app\models\clientStatus.ts" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">12.0</VisualStudioVersion>

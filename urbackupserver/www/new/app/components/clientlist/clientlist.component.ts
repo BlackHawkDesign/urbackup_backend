@@ -1,6 +1,7 @@
 import {Component} from '@angular/core';
 import {OnInit} from '@angular/core';
 import {Client} from './../../models/client';
+import {ClientStatus} from './../../models/clientStatus';
 import {ClientSearchRequest} from './../../models/clientSearchRequest';
 import {ClientSearchResult} from './../../models/clientSearchResult';
 import {ClientService} from './../../services/client.service';

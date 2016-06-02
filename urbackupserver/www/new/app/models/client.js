@@ -1,10 +1,11 @@
 "use strict";
+var clientStatus_1 = require("./clientStatus");
 var Client = (function () {
     function Client(name) {
         this.name = name;
         this.selected = false;
         this.showDetail = false;
-        this.status = ClientStatus.Ok;
+        this.status = clientStatus_1.ClientStatus.Ok;
         this.processes = [];
     }
     Client.prototype.isCreatingBackups = function () {

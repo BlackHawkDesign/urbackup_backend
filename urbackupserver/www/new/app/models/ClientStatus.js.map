@@ -1,1 +1,1 @@
-{"version":3,"file":"ClientStatus.js","sourceRoot":"","sources":["ClientStatus.ts"],"names":[],"mappings":"AAAA,IAAK,YAIJ;AAJD,WAAK,YAAY;IACb,2CAAE,CAAA;IACF,uDAAQ,CAAA;IACR,2DAAU,CAAA;AACd,CAAC,EAJI,YAAY,KAAZ,YAAY,QAIhB"}
+{"version":3,"file":"clientStatus.js","sourceRoot":"","sources":["clientStatus.ts"],"names":[],"mappings":";AACA,WAAY,YAAY;IACpB,2CAAE,CAAA;IACF,uDAAQ,CAAA;IACR,2DAAU,CAAA;AACd,CAAC,EAJW,oBAAY,KAAZ,oBAAY,QAIvB;AAJD,IAAY,YAAY,GAAZ,oBAIX,CAAA"}

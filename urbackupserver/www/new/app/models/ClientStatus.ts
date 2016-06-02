@@ -1,4 +1,5 @@
-﻿enum ClientStatus {
+﻿
+export enum ClientStatus {
     Ok,
     Outdated,
     InProgress

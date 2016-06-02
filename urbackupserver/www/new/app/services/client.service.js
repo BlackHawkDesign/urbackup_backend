@@ -1,5 +1,6 @@
 "use strict";
 var client_1 = require('./../models/client');
+var clientStatus_1 = require('./../models/clientStatus');
 var process_1 = require('./../models/process');
 var clientSearchResult_1 = require('./../models/clientSearchResult');
 var ClientService = (function () {
@@ -14,7 +15,7 @@ var ClientService = (function () {
         client1.online = true;
         client1.osVersion = "Windows 7 64 biit";
         client1.processes = [new process_1.Process("0", 20)];
-        client1.status = ClientStatus.InProgress;
+        client1.status = clientStatus_1.ClientStatus.InProgress;
         client1.ip = "192.168.1.2";
         client1.version = "1.5.1";
         var client2 = new client_1.Client("Pc2");
@@ -44,7 +45,7 @@ var ClientService = (function () {
             client.status = 0;
             client.ip = "192.168.1." + i;
             client.version = "1.5.1";
-            client.status = ClientStatus.Outdated;
+            client.status = clientStatus_1.ClientStatus.Outdated;
             this.clients.push(client);
         }
     }

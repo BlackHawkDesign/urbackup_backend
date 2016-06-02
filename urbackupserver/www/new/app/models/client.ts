@@ -1,4 +1,5 @@
 import {Process} from "./process";
+import {ClientStatus } from "./clientStatus";
 
 export class Client {
 	id: number;
