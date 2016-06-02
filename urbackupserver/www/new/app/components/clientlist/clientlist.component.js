@@ -9,11 +9,13 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var core_1 = require('@angular/core');
+var clientStatus_1 = require('./../../models/clientStatus');
 var clientSearchRequest_1 = require('./../../models/clientSearchRequest');
 var client_service_1 = require('./../../services/client.service');
 var relativeTimePipe_1 = require('./../../pipes/relativeTimePipe');
 var ClientListComponent = (function () {
     function ClientListComponent(clientService) {
+        this.clientStatus = clientStatus_1.ClientStatus;
         this.clientService = clientService;
         this.searchRequest = new clientSearchRequest_1.ClientSearchRequest();
     }
