@@ -3,7 +3,7 @@ var ClientSearchRequest = (function () {
     function ClientSearchRequest() {
         this.name = "";
         this.online = -1;
-        this.status = "";
+        this.status = -1;
         this.pageNumber = 1;
         this.pageSize = 10;
     }

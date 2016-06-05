@@ -24,11 +24,11 @@
 				</select>
 			</th>
 			<th>
-				<select class="form-control">
-					<option>Select</option>
-					<option>In progress</option>
-					<option>OK</option>
-					<option>Outdated</option>
+				<select [(ngModel)]="searchRequest.status" class="form-control" (ngModelChange)="search(1)">
+					<option [ngValue]="-1">Select</option>
+					<option [ngValue]="0">OK</option>
+					<option [ngValue]="1">Outdated</option>
+					<option [ngValue]="2">In progress</option>
 				</select>
 			</th>
 			<th>&nbsp;</th>
@@ -57,13 +57,13 @@
 					<span *ngSwitchWhen="false"class="label label-danger">Offline</span>
 				</td>
 				<td>
-					<div *ngIf="client.status == clientStatus.InProgress" class="progress">
-						<div class="progress-bar progress-bar-striped active" role="progressbar" [attr.aria-valuenow]="client.getTotalProcessPercentage()" aria-valuemin="0" aria-valuemax="100" style="width: 35%">
+					<div *ngIf="client.status == 2" class="progress">
+						<div class="progress-bar progress-bar-striped active" role="progressbar" [attr.aria-valuenow]="client.getTotalProcessPercentage()" aria-valuemin="0" aria-valuemax="100" [style.width]="client.getTotalProcessPercentage() + '%'">
 							<span>{{client.getTotalProcessPercentage()}}%</span>
 						</div>
 					</div>
-					<span *ngIf="client.status == clientStatus.Ok" class="label label-success" >OK</span>
-					<span *ngIf="client.status == clientStatus.Outdated" class="label label-danger">Outdated</span>
+					<span *ngIf="client.status == 0" class="label label-success" >OK</span>
+					<span *ngIf="client.status == 1" class="label label-danger">Outdated</span>
 				</td>
 				<td>{{client.lastSeen | relativeTime}}</td>
 				<td class="text-right">

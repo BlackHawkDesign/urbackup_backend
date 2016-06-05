@@ -19,7 +19,6 @@ export class ClientListComponent implements OnInit {
 	searchRequest : ClientSearchRequest;
 	searchResult: ClientSearchResult;
 	pendingSearchRequest: any;
-	public clientStatus = ClientStatus;
 	
 	constructor(clientService: ClientService) {
 		this.clientService = clientService;

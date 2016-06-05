@@ -70,6 +70,10 @@ export class ClientService {
 				continue;
 			}
 
+			if (searchRequest.status !== -1 && client.status !== searchRequest.status) {
+				continue;
+			}
+
 			clients.push(this.clients[i]);
 		}
 

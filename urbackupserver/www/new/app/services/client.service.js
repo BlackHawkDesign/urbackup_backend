@@ -59,6 +59,9 @@ var ClientService = (function () {
             if (searchRequest.online !== -1 && client.online !== (searchRequest.online === 1)) {
                 continue;
             }
+            if (searchRequest.status !== -1 && client.status !== searchRequest.status) {
+                continue;
+            }
             clients.push(this.clients[i]);
         }
         var start = (searchRequest.pageNumber - 1) * searchRequest.pageSize;
