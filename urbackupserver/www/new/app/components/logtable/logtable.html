@@ -1,1 +1,101 @@
 <h1>Logs</h1>
+<table id="log-table" class="table">
+	<thead>
+		<tr>
+			<th>Computer name</th>
+			<th>Action</th>
+			<th>Start time</th>
+			<th>&nbsp;</th>
+		</tr>
+		<tr class="filterRow">
+			<th><input type="text" class="form-control small"/></th>
+			<th>
+				<select class="form-control">
+					<option>Select</option>
+					<option>Incremental image backup</option>
+					<option>Full image backup</option>
+				</select>
+			</th>
+			<th>&nbsp;</th>
+			<th class="text-right">
+				<button class="btn btn-default">Filter</button>
+			</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>Chris pc</td>
+			<td>Incremental image backup</td>
+			<td>2015-10-19 20:23</td>
+			<td class="text-right">
+				<button class="btn btn-warning" type="button">
+					Warnings <span class="badge">4</span>
+				</button>
+				<button class="btn btn-danger" type="button">
+					Errors <span class="badge">2</span>
+				</button>
+			</td>
+		</tr>
+		<tr>
+			<td>Chris pc</td>
+			<td>Incremental image backup</td>
+			<td>2015-10-19 20:23</td>
+			<td class="text-right">
+				<button class="btn btn-warning" type="button">
+					Warnings <span class="badge">1</span>
+				</button>
+				<button class="btn btn-danger" type="button">
+					Errors <span class="badge">2</span>
+				</button>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="4" class="table-detail">
+				<strong>Log records</strong>
+				<ul>
+					<li>
+						<label><span class="label label-danger">Error</span></label>
+						<label>2015-10-07 12:05</label>
+						<label>Backup failed</label>
+					</li>
+					<li>
+						<label><span class="label label-danger">Error</span></label>
+						<label>2015-10-07 12:05</label>
+						<label>Failed to open MBR file</label>
+					</li>
+					<li>
+						<label><span class="label label-warning">Warning</span></label>
+						<label>2015-10-07 12:05</label>
+						<label>MBR file not present</label>
+					</li>
+				</ul>
+			</td>
+		</tr>
+		<tr>
+			<td>John pc</td>
+			<td>Incremental image backup</td>
+			<td>2015-10-19 20:23</td>
+			<td class="text-right">
+				<button class="btn btn-warning" type="button">
+					Warnings <span class="badge">0</span>
+				</button>
+				<button class="btn btn-danger" type="button">
+					Errors <span class="badge">2</span>
+				</button>
+			</td>
+		</tr>
+		<tr>
+			<td>John pc</td>
+			<td>Incremental image backup</td>
+			<td>2015-10-19 20:23</td>
+			<td class="text-right">
+				<button class="btn btn-warning" type="button">
+					Warnings <span class="badge">0</span>
+				</button>
+				<button class="btn btn-danger" type="button">
+					Errors <span class="badge">2</span>
+				</button>
+			</td>
+		</tr>
+	</tbody>
+</table>	
