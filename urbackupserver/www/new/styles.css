@@ -92,3 +92,44 @@ menu {
 	background-repeat: no-repeat;
 	background-position: center;
 }
+
+#log-table td{
+	height: 50px;
+}
+
+#log-table .filterRow {
+	background-color: #e7e7e7
+	} 
+
+	#log-table .filterRow input {
+	width: 100%;
+
+	}
+
+	#log-table .filterRow select{
+	width: 100%;
+	}
+
+#log-table .table-detail{
+	padding: 15px;
+	background-color: #e7e7e7;
+	box-shadow: inset 0 3px 9px rgba(0,0,0,.075);
+	background-image: linear-gradient(to bottom,#dbdbdb 0,#e2e2e2 100%);
+	background-repeat: repeat-x;
+	width: 100%;
+}
+
+#log-table .table-detail ul {
+	margin-top: 10px;
+	list-style-type: none;
+	padding-left: 0px;
+}
+
+#log-table .table-detail li label:first-child {
+	width: 60px;
+}
+
+
+#log-table .table-detail li label {
+	margin-right: 30px;
+}
